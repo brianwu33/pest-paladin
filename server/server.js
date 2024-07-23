@@ -50,7 +50,7 @@ app.get('/api/detections', async (req, res) => {
     if (start) {
         queryParams.push(start);
         query += ` AND timestamp >= $${queryParams.length}`;
-    }
+    } 
 
     if (end) {
         queryParams.push(end);
@@ -89,7 +89,7 @@ app.get('/api/detections', async (req, res) => {
         res.status(200).json(result.rows);
     } catch (error) {
         console.error('Error fetching detection data', error);
-        res.status(500).json({ error: 'Internal Server Error' });
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
