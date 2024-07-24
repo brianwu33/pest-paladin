@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import TopNavBar from '../components/TopNavBar';
-import { Button } from '@mui/material';
 import Peer from "simple-peer"
 import io from "socket.io-client"
 
