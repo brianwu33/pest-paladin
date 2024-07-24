@@ -20,8 +20,8 @@ const Home = () => {
         <div>
             <TopNavBar />
             <Slideshow />
-            <li></li>
-            <li></li>
+            <br/>
+            <br/>
             <Container>
                 <Row>
                     <Col md={4}>
