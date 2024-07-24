@@ -1,7 +1,9 @@
-import Carousel from 'react-bootstrap/Carousel'
-import home from './images/garden.jpg';
-import pest from './images/small_mouse.jpg';
-import tracking from './images/tracking.jpg';
+import React from 'react';
+import { Carousel } from 'react-bootstrap';
+
+import home from '../assets/images/garden.jpg';
+import smallMouse from '../assets/images/small_mouse.jpg';
+import tracking from '../assets/images/tracking.jpg';
 
 const Slideshow = () => {
     return (
@@ -32,7 +34,7 @@ const Slideshow = () => {
                 </Carousel.Item>
                 <Carousel.Item>
                     <img
-                        src = {pest}
+                        src = {smallMouse}
                         alt = {`Slide 3`}
                         className = "d-block w-100"
                         style={{ height: '400px', objectFit: 'cover' }} 
