@@ -3,13 +3,14 @@ require("dotenv").config();
 // setup code
 const express = require("express");
 const bodyParser = require('body-parser');
-const {Pool} = require('pg')
+const {Pool} = require('pg');
+
 
 // database
-//const db = require("./db"); // it will automatically look for index.js
 const morgan = require("morgan");
 const app = express(); // create an instance of express app
-app.use(bodyParser.json()) // parses HTTP body
+app.use(bodyParser.json()); // parses HTTP body
+app.use(morgan('dev')); // logs HTTP request/response information
 
 // postgres connection pool
 const pool = new Pool({
@@ -18,10 +19,18 @@ const pool = new Pool({
     database: 'initial_db',
     password: 'Angel516821!',
     port: 5432,
-})
+    ssl: {
+        rejectUnauthorized: false // Set to true if you want to reject unauthorized certificates
+    }
+});
+
+// basic route 
+app.get('/', (req, res) => {
+    res.send('Server is running');
+});
 
 // insert object dectection data
-app.post('api/detections', async(req, res) =>{
+app.post('/api/detections', async(req, res) =>{
     const {timestamp, detections} = req.body;
 
     if(!timestamp){
@@ -30,8 +39,8 @@ app.post('api/detections', async(req, res) =>{
 
     try{
         const result = await pool.query(
-            'INSERT INTO object_dectection (timestamp, detections) VALUES ($1, $2), RETURNING *',
-            [timestamp,detections]
+            'INSERT INTO object_detection (timestamp, detections) VALUES ($1, $2) RETURNING *',
+            [timestamp,JSON.stringify(detections)]
         );
 
         res.status(201).json(result.rows[0]);
@@ -41,6 +50,7 @@ app.post('api/detections', async(req, res) =>{
     }
 });
 
+// fetch object detection data
 app.get('/api/detections', async (req, res) => {
     const { start, end, label, classId, minConfidence } = req.query;
 
@@ -93,8 +103,29 @@ app.get('/api/detections', async (req, res) => {
     }
 });
 
+// real sense processing
+const server = http.createServer(app);
+const wss = new WebSocket.Server({server});
+
+app.use(express.json());
+wss.on('connection', ws =>{
+    console.log('New client connected');
+
+    ws.on('message', message =>{
+        console.log('Received message:',message);
+    });
+
+    ws.on('close', ()=>{
+        console.log('Client disconnected');
+    });
+
+    ws.on('error', error=>{
+        console.error('WebSocket error:', error);
+    });
+})
+
 const PORT = process.env.PORT || 3001;
 // listen for connection requests
 app.listen(PORT, () => {
     console.log(`Server listening on ${PORT}`);
-})
+});
