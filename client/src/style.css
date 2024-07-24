@@ -38,6 +38,14 @@
     border-radius: 15px;
 }
 
+.card-hover {
+    transition: transform 0.3s;
+}
+
+.card-hover:hover {
+    transform: scale(1.05);
+}
+
 .caption_overlay{
     text-align: center;
     bottom: initial;

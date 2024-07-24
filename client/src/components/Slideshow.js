@@ -1,11 +1,23 @@
-import Carousel from 'react-bootstrap/Carousel'
-import home from './images/garden.jpg';
-import pest from './images/small_mouse.jpg';
-import tracking from './images/tracking.jpg';
+import React, { useState } from 'react';
+import { Carousel } from 'react-bootstrap';
+import Typing from 'react-typing-effect';
+import TypingEffect from '../components/TypingEffect';
+
+
+
+import home from '../assets/images/garden.jpg';
+import smallMouse from '../assets/images/small_mouse.jpg';
+import tracking from '../assets/images/tracking.jpg';
 
 const Slideshow = () => {
+    const [activeIndex, setActiveIndex] = useState(0);
+
+    const handleSelect = (selectedIndex) => {
+        setActiveIndex(selectedIndex);
+    };
+
     return (
-        <Carousel>
+        <Carousel activeIndex={activeIndex} onSelect={handleSelect}>
                 <Carousel.Item>
                     <img
                         src = {home}
@@ -14,7 +26,7 @@ const Slideshow = () => {
                         style={{ height: '400px', objectFit: 'cover' }} 
                     />
                     <Carousel.Caption className="caption-overlay">
-                        <h2>Welcome</h2>
+                        <TypingEffect text="Welcome to Pest Paladin" speed={100} reset={activeIndex === 0} />
                         <p style = {{color:'orange'}}>Explore the features of Pest Paladin</p>
                     </Carousel.Caption>
                 </Carousel.Item>
@@ -26,19 +38,19 @@ const Slideshow = () => {
                         style={{ height: '400px', objectFit: 'cover' }} 
                     />
                     <Carousel.Caption className="caption-overlay">
-                        <h2>Tracking</h2>
+                        <TypingEffect text="Path Tracking" speed={100} reset={activeIndex === 1} />
                         <p style = {{color:'orange'}}>Real-time and predictive tracking of pests</p>
                     </Carousel.Caption>
                 </Carousel.Item>
                 <Carousel.Item>
                     <img
-                        src = {pest}
+                        src = {smallMouse}
                         alt = {`Slide 3`}
                         className = "d-block w-100"
                         style={{ height: '400px', objectFit: 'cover' }} 
                     />
                     <Carousel.Caption className="caption-overlay">
-                        <h2>Identification</h2>
+                        <TypingEffect text="Species Identification" speed={100} reset={activeIndex === 2} />
                         <p style = {{color:'orange'}}>Accurate pest identification</p>
                     </Carousel.Caption>
                 </Carousel.Item>
