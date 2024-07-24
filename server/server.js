@@ -9,7 +9,7 @@ const {Pool} = require('pg')
 //const db = require("./db"); // it will automatically look for index.js
 const morgan = require("morgan");
 const app = express(); // create an instance of express app
-app.use(bodyParser.json())
+app.use(bodyParser.json()) // parses HTTP body
 
 // postgres connection pool
 const pool = new Pool({
