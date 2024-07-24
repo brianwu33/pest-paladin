@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import TopNavBar from '../components/TopNavBar';
 import Button from "@material-ui/core/Button"
 import Peer from "simple-peer"
@@ -8,7 +8,7 @@ const socket = io.connect("http://localhost:3001") // route to backend
 
 const LiveFeedPage = () => {
     const [callAccepted, setCallAccepted] = useState(false);
-    const userVideo = userRef();
+    const userVideo = useRef();
     const connectionRef = useRef();
 
     useEffect(()=>{
