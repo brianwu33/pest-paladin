@@ -104,7 +104,7 @@ app.get('/api/detections', async (req, res) => {
 });
 
 // real sense processing
-const server = http.createServer(app);
+/*const server = http.createServer(app);
 const wss = new WebSocket.Server({server});
 
 app.use(express.json());
@@ -122,7 +122,7 @@ wss.on('connection', ws =>{
     ws.on('error', error=>{
         console.error('WebSocket error:', error);
     });
-})
+})*/
 
 const PORT = process.env.PORT || 3001;
 // listen for connection requests
