@@ -17,7 +17,7 @@ const pool = new Pool({
     user: 'postgres',
     host: 'fydp-db-instance.c7ceo8ome79i.us-east-2.rds.amazonaws.com',
     database: 'initial_db',
-    password: 'Angel516821!',
+    password: 'ece498group13',
     port: 5432,
     ssl: {
         rejectUnauthorized: false // Set to true if you want to reject unauthorized certificates
@@ -52,7 +52,7 @@ app.post('/api/detections', async(req, res) =>{
 
 // fetch object detection data
 app.get('/api/detections', async (req, res) => {
-    const { start, end, label, classId, minConfidence } = req.query;
+    const { start, end, label, classId, minConfidence, user, camera } = req.query;
 
     let query = 'SELECT * FROM object_detection WHERE 1=1';
     const queryParams = [];
@@ -82,6 +82,16 @@ app.get('/api/detections', async (req, res) => {
         query += ` AND detections @> $${queryParams.length}::jsonb`;
     }
 
+    if(user){
+        queryParams.push(user);
+        query += ` AND detections @> $${queryParams.length}::jsonb`;
+    }
+
+    if(camera){
+        queryParams.push(camera);
+        query += ` AND detections @> $${queryParams.length}::jsonb`;
+    }
+
     try {
         // Modify the way JSONB parameters are passed for JSONB containment operations
         const formattedQueryParams = queryParams.map(param => {
@@ -101,6 +111,42 @@ app.get('/api/detections', async (req, res) => {
         console.error('Error fetching detection data', error);
         res.status(500).json({ error: 'Internal server error' });
     }
+});
+
+// web socket communication
+const http = require("http"); // create an http server
+const server = http.createServer(app); // use the express instance
+const socket = require("socket.io"); // websocket for real-time communication
+const io = socket(server,{
+    cors:{
+        origin:"http://localhost:3000", // where is the frontend going to be running on
+        methods: ["GET", "POST"] // only allows get and post
+    }
+});
+
+io.on("connection", (socket) =>{ // listen for new connections, create new socket instance
+    console.log("Client connected: ", socket.id);
+    // connect via socket.id
+    socket.on("offer", (payload) =>{
+        io.to(payload.target).emit("offer", payload);
+    });
+
+    socket.on("answer", (payload) => {
+        io.to(payload.target).emit("answer", payload);
+    });
+    socket.on("ice-candidate", (incoming) =>{
+        io.to(incoming.target).emit("ice-candidate", incoming);
+    });
+
+    socket.on("disconnect", ()=>{
+        console.log("Client disconnected:", socket.id);
+    });
+});
+
+const PORT = process.env.PORT || 3001;
+// listen for connection requests
+app.listen(PORT,'0.0.0.0', () => {
+    console.log(`Server listening on ${PORT}`);
 });
 
 // real sense processing
@@ -123,9 +169,3 @@ wss.on('connection', ws =>{
         console.error('WebSocket error:', error);
     });
 })*/
-
-const PORT = process.env.PORT || 3001;
-// listen for connection requests
-app.listen(PORT, () => {
-    console.log(`Server listening on ${PORT}`);
-});
