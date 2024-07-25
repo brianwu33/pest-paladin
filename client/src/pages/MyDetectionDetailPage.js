@@ -2,6 +2,9 @@ import React from 'react';
 import { useLocation, useParams } from 'react-router-dom';
 import TopNavBar from '../components/TopNavBar';
 import { Buffer } from 'buffer';
+import { Container, Row, Col, Card, ListGroup } from 'react-bootstrap';
+import '../MyDetectionsPage.css'; // Adjust the path as needed
+
 
 const MyDetectionDetailPage = () => {
     const location = useLocation();
@@ -11,35 +14,42 @@ const MyDetectionDetailPage = () => {
     const cameraCaptureImageBase64 = Buffer.from(detection.camera_capture_image.data).toString('base64');
     const speciesCaptureImageBase64 = Buffer.from(detection.species_capture_image.data).toString('base64');
 
-    const imageStyle = {
-        width: '200px', // Set the desired width
-        height: 'auto', // Set the desired height
-        objectFit: 'cover', // Ensure the image covers the dimensions without distortion
-        border: '1px solid #ddd', // Optional: Add a border for better visibility
-        borderRadius: '4px', // Optional: Add rounded corners
-        margin: '10px' // Optional: Add some margin
-    };
+    const duration = (new Date(detection.timestamplist[detection.timestamplist.length - 1]) - new Date(detection.timestamplist[0])) / 1000;
 
     return (
         <div>
             <TopNavBar />
-            <h1>Detection Detail</h1>
-            <p><strong>Instance ID:</strong> {detection.instance_id}</p>
-            <p><strong>Species:</strong> {detection.species}</p>
-            <p><strong>Camera ID:</strong> {detection.camera_id}</p>
-            <p><strong>User ID:</strong> {detection.user_id}</p>
-            <p><strong>Confidence:</strong> {detection.confidence}</p>
-            <p><strong>Timestamp List:</strong></p>
-            <ul>
-                {detection.timestamplist.map((timestamp, index) => (
-                    <li key={index}>{new Date(timestamp).toLocaleString()}</li>
-                ))}
-            </ul>
-            <p><strong>Camera Capture Image:</strong></p>
-            <img src={`data:image/jpeg;base64,${cameraCaptureImageBase64}`} alt="Camera Capture" style={imageStyle}/>
-            <p><strong>Species Capture Image:</strong></p>
-            <img src={`data:image/jpeg;base64,${speciesCaptureImageBase64}`} alt="Species Capture" style={imageStyle}/>
+            <div className="detection-page">
+                <h1 className="mb-4 detection-heading">Detection Detail</h1>
+                <Container className="mt-4 detection-detail-content">
+                    {detection ? (
+                        <Card className="shadow-sm">
+                            <Card.Header as="h5">Detection Details</Card.Header>
+                            <Card.Body>
+                                <Row className="mb-3">
+                                    <Col md={6}>
+                                        <Card.Img variant="top" src={`data:image/jpeg;base64,${cameraCaptureImageBase64}`} alt="Camera Capture" className="img-fluid rounded detection-image" />
+                                    </Col>
+                                    <Col md={6}>
+                                        <Card.Img variant="top" src={`data:image/jpeg;base64,${speciesCaptureImageBase64}`} alt="Species Capture" className="img-fluid rounded detection-image" />
+                                    </Col>
+                                </Row>
+                                <ListGroup variant="flush">
+                                    <ListGroup.Item><strong>Instance ID:</strong> {detection.instance_id}</ListGroup.Item>
+                                    <ListGroup.Item><strong>Species:</strong> {detection.species}</ListGroup.Item>
+                                    <ListGroup.Item><strong>Camera ID:</strong> {detection.camera_id}</ListGroup.Item>
+                                    <ListGroup.Item><strong>User ID:</strong> {detection.user_id}</ListGroup.Item>
+                                    <ListGroup.Item><strong>Confidence:</strong> {detection.confidence}</ListGroup.Item>
+                                    <ListGroup.Item><strong>Duration:</strong> {duration.toFixed(2)} seconds</ListGroup.Item>
+                                </ListGroup>
+                            </Card.Body>
+                        </Card>
+                    ) : (
+                        <div>Loading...</div>
+                    )}
+                </Container>
             </div>
+        </div>
     );
 };
 
