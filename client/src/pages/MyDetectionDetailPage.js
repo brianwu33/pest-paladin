@@ -14,7 +14,7 @@ const MyDetectionDetailPage = () => {
     const cameraCaptureImageBase64 = Buffer.from(detection.camera_capture_image.data).toString('base64');
     const speciesCaptureImageBase64 = Buffer.from(detection.species_capture_image.data).toString('base64');
 
-    const duration = (new Date(detection.timestamplist[detection.timestamplist.length - 1]) - new Date(detection.timestamplist[0])) / 1000;
+    const duration = Math.round((new Date(detection.timestamplist[detection.timestamplist.length - 1]) - new Date(detection.timestamplist[0])) / 1000)
 
     return (
         <div>
@@ -40,7 +40,7 @@ const MyDetectionDetailPage = () => {
                                     <ListGroup.Item><strong>Camera ID:</strong> {detection.camera_id}</ListGroup.Item>
                                     <ListGroup.Item><strong>User ID:</strong> {detection.user_id}</ListGroup.Item>
                                     <ListGroup.Item><strong>Confidence:</strong> {detection.confidence}</ListGroup.Item>
-                                    <ListGroup.Item><strong>Duration:</strong> {duration.toFixed(2)} seconds</ListGroup.Item>
+                                    <ListGroup.Item><strong>Duration:</strong> {duration} seconds</ListGroup.Item>
                                 </ListGroup>
                             </Card.Body>
                         </Card>
