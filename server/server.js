@@ -40,16 +40,6 @@ app.post('/api/detections', upload.single('image'), async (req, res) => {
         return res.status(400).json({ error: 'Timestamp is missing' });
     }
 
-    if(user){
-        queryParams.push(user);
-        query += ` AND detections @> $${queryParams.length}::jsonb`;
-    }
-
-    if(camera){
-        queryParams.push(camera);
-        query += ` AND detections @> $${queryParams.length}::jsonb`;
-    }
-
     try {
         const client = await pool.connect();
 
@@ -145,6 +135,16 @@ app.post('/api/detections', upload.single('image'), async (req, res) => {
 //         queryParams.push(minConfidence);
 //         query += ` AND detections @> $${queryParams.length}::jsonb`;
 //     }
+
+// if(user){
+//     queryParams.push(user);
+//     query += ` AND detections @> $${queryParams.length}::jsonb`;
+// }
+
+// if(camera){
+//     queryParams.push(camera);
+//     query += ` AND detections @> $${queryParams.length}::jsonb`;
+// }
 
 //     try {
 //         // Modify the way JSONB parameters are passed for JSONB containment operations
