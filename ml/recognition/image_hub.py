@@ -1,14 +1,14 @@
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
+
 import time
 import torch
 import cv2
-import pyrealsense2 as rs
 from PIL import Image
-import numpy as np
 import os
 import json
+import requests
 from datetime import datetime
-import asyncio
-import aiohttp
 import imagezmq
 
 # Check if a GPU is available
@@ -37,6 +37,7 @@ detector_output = 'file'  # Change this to 'file' to save data locally
 
 # API endpoint URL (only used if detector_output is 'http')
 box_api_url = 'https://example.com/api'  # Replace with your actual API endpoint
+timeout = 0.1
 
 # Function to process a single frame
 def process_frame(frame):
@@ -53,15 +54,20 @@ def process_frame(frame):
     return boxes, scores, labels, label_names, runtime
 
 # Function to post data to the API endpoint
-async def post_data(url, json_data, image):
-    async with aiohttp.ClientSession() as session:
-        form_data = aiohttp.FormData()
-        form_data.add_field('json_data', json.dumps(json_data), content_type='application/json')
-        form_data.add_field('image', image, filename='image.jpg', content_type='image/jpeg')
-        
-        async with session.post(url, data=form_data) as response:
-            # return await response.text()
-            pass
+def post_data(url, json_data, image, timeout=30):
+    try:
+        files = {
+            'image': ('image.jpg', image, 'image/jpeg')
+        }
+        payload = {
+            'data': json.dumps(json_data)
+        }
+        response = requests.post(url, data=payload, files=files, timeout=timeout)
+        response.raise_for_status()  # Raise an error for bad status codes
+        return response.text
+    except Exception as e:
+        return f"An error occurred: {e}"
+
 
 # Initialize ImageHub
 image_hub = imagezmq.ImageHub()
@@ -132,13 +138,14 @@ try:
                                 'class': int(label),
                                 'species': label_name,
                                 'confidence': float(score),
+                                'instanceID': 1
                             }
                             detections.append(detection)
 
                     output = {
                         'timestamp': timestamp,
-                        'userID': 0,
-                        'cameraID': rpi,
+                        'userID': 1,
+                        'cameraID': 1,
                         'Detections': detections
                     }
 
@@ -153,7 +160,7 @@ try:
                     elif detector_output == 'http':
                         # Send data to the API endpoint
                         _, image = cv2.imencode('.jpg', detected_frames[rpi][middle_index][0])
-                        asyncio.run(post_data(box_api_url, output, image.tobytes()))
+                        post_data(box_api_url, output, image.tobytes(), timeout)
 
                 # Reset the counters and list
                 detection_count[rpi] = 0
