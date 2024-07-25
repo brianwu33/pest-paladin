@@ -135,13 +135,14 @@ try:
                                 'class': int(label),
                                 'species': label_name,
                                 'confidence': float(score),
+                                'instanceID': 1
                             }
                             detections.append(detection)
 
                     output = {
                         'timestamp': timestamp,
-                        'userID': 0,
-                        'cameraID': rpi,
+                        'userID': 1,
+                        'cameraID': 1,
                         'Detections': detections
                     }
 
