@@ -8,7 +8,7 @@
 import time
 import torch
 import cv2
-import pyrealsense2 as rs
+# import pyrealsense2 as rs
 from PIL import Image
 import numpy as np
 import os
@@ -26,7 +26,7 @@ model = torch.hub.load('ultralytics/yolov5', 'custom', path='weights/best.pt', f
 model.eval()
 
 # Variable to select the camera source ('webcam' or 'realsense')
-camera_source = 'realsense'  # Change this to 'realsense' to use the Realsense camera
+camera_source = 'webcam'  # Change this to 'realsense' to use the Realsense camera
 
 # Set the desired frames per second (fps)
 desired_fps = 10
