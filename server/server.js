@@ -179,6 +179,26 @@ app.get('/api/detections', async (req, res) => {
     }
 });
 
+// GET endpoint to retrieve data based on instance_id
+app.get('/api/detections/:id', async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        const client = await pool.connect();
+        const result = await client.query('SELECT * FROM detection_instance WHERE instance_id = $1', [id]);
+        client.release();
+
+        if (result.rows.length > 0) {
+            res.status(200).json(result.rows[0]);
+        } else {
+            res.status(404).json({ error: 'Detection instance not found' });
+        }
+    } catch (error) {
+        console.error('Error retrieving detection data:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
 // web socket communication
 const http = require("http"); // create an http server
 const server = http.createServer(app); // use the express instance
