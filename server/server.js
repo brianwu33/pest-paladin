@@ -1,15 +1,13 @@
 require("dotenv").config();
-
-// setup code
 const express = require("express");
 const bodyParser = require('body-parser');
 const {Pool} = require('pg');
-
-
-// database
 const morgan = require("morgan");
-const app = express(); // create an instance of express app
-app.use(bodyParser.json()); // parses HTTP body
+const multer = require('multer');               // Used to handle file uploads
+const sharp = require('sharp')                  // Used for image processing (cropping)
+const app = express();                          // Create an instance of express app
+
+app.use(bodyParser.json());                     // parses HTTP body
 app.use(morgan('dev')); // logs HTTP request/response information
 
 // postgres connection pool
@@ -24,62 +22,22 @@ const pool = new Pool({
     }
 });
 
+// Multer setup for handling file uploads
+const storage = multer.memoryStorage();
+const upload = multer({ storage: storage });
+
 // basic route 
 app.get('/', (req, res) => {
     res.send('Server is running');
 });
 
 // insert object dectection data
-app.post('/api/detections', async(req, res) =>{
-    const {timestamp, detections} = req.body;
+app.post('/api/detections', upload.single('image'), async (req, res) => {
+    const { timestamp, userID, cameraID, Detections } = JSON.parse(req.body.data);
+    const imageBuffer = req.file.buffer;
 
-    if(!timestamp){
-        return res.status(400).json({error: 'Timestamp is missing'});
-    }
-
-    try{
-        const result = await pool.query(
-            'INSERT INTO object_detection_raw_data (timestamp, detections) VALUES ($1, $2) RETURNING *',
-            [timestamp,JSON.stringify(detections)]
-        );
-
-        res.status(201).json(result.rows[0]);
-    }catch ( error){
-        console.error('Error inserting detection data', error);
-        res.status(500).json({error:'Internal Service Error'})
-    }
-});
-
-// fetch object detection data
-app.get('/api/detections', async (req, res) => {
-    const { start, end, label, classId, minConfidence, user, camera } = req.query;
-
-    let query = 'SELECT * FROM object_detection_raw_data WHERE 1=1';
-    const queryParams = [];
-
-    if (start) {
-        queryParams.push(start);
-        query += ` AND timestamp >= $${queryParams.length}`;
-    } 
-
-    if (end) {
-        queryParams.push(end);
-        query += ` AND timestamp <= $${queryParams.length}`;
-    }
-
-    if (label) {
-        queryParams.push(label);
-        query += ` AND detections @> $${queryParams.length}::jsonb`;
-    }
-
-    if (classId) {
-        queryParams.push(classId);
-        query += ` AND detections @> $${queryParams.length}::jsonb`;
-    }
-
-    if (minConfidence) {
-        queryParams.push(minConfidence);
-        query += ` AND detections @> $${queryParams.length}::jsonb`;
+    if (!timestamp) {
+        return res.status(400).json({ error: 'Timestamp is missing' });
     }
 
     if(user){
@@ -93,23 +51,131 @@ app.get('/api/detections', async (req, res) => {
     }
 
     try {
-        // Modify the way JSONB parameters are passed for JSONB containment operations
-        const formattedQueryParams = queryParams.map(param => {
-            if (typeof param === 'string') {
-                return JSON.stringify([{ label: param }]);
-            } else if (typeof param === 'number') {
-                return JSON.stringify([{ class: param }]);
-            } else if (typeof param === 'number' && parseFloat(param)) {
-                return JSON.stringify([{ confidence: { $gte: parseFloat(param) } }]);
-            }
-            return param;
-        });
+        const client = await pool.connect();
 
-        const result = await pool.query(query, formattedQueryParams);
+        for (const detection of Detections) {
+            const { instanceID, xmin, xmax, ymin, ymax, species, confidence } = detection;
+
+            // Crop the image based on detection bounding box
+            const speciesCaptureImage = await sharp(imageBuffer)
+                .extract({ left: Math.round(xmin), top: Math.round(ymin), width: Math.round(xmax - xmin), height: Math.round(ymax - ymin) })
+                .toBuffer();
+
+            // Check if the instance already exists
+            const result = await client.query(
+                'SELECT * FROM detection_instance WHERE instance_id = $1',
+                [instanceID]
+            );
+
+            if (result.rows.length > 0) {
+                // Update existing instance
+                await client.query(
+                    `UPDATE detection_instance
+                     SET timestamplist = array_append(timestamplist, $1)
+                     WHERE instance_id = $2`,
+                    [timestamp, instanceID]
+                );
+            } else {
+                // Insert new instance
+                await client.query(
+                    `INSERT INTO detection_instance (instance_id, species, confidence, user_id, camera_id, camera_capture_image, species_capture_image, timestamplist)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+                    [instanceID, species, confidence, userID, cameraID, imageBuffer, speciesCaptureImage, [timestamp]]
+                );
+            }
+        }
+
+        client.release();
+        res.status(201).json({ message: 'Detections processed successfully' });
+
+    } catch (error) {
+        console.error('Error processing detections:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+// app.post('/api/detections', async(req, res) =>{
+//     const {timestamp, detections} = req.body;
+
+//     if(!timestamp){
+//         return res.status(400).json({error: 'Timestamp is missing'});
+//     }
+
+//     try{
+//         const result = await pool.query(
+//             'INSERT INTO object_detection_raw_data (timestamp, detections) VALUES ($1, $2) RETURNING *',
+//             [timestamp,JSON.stringify(detections)]
+//         );
+
+//         res.status(201).json(result.rows[0]);
+//     }catch ( error){
+//         console.error('Error inserting detection data', error);
+//         res.status(500).json({error:'Internal Service Error'})
+//     }
+// });
+
+// fetch object detection data
+// app.get('/api/detections', async (req, res) => {
+//     const { start, end, label, classId, minConfidence } = req.query;
+
+//     let query = 'SELECT * FROM object_detection WHERE 1=1';
+//     const queryParams = [];
+
+//     if (start) {
+//         queryParams.push(start);
+//         query += ` AND timestamp >= $${queryParams.length}`;
+//     } 
+
+//     if (end) {
+//         queryParams.push(end);
+//         query += ` AND timestamp <= $${queryParams.length}`;
+//     }
+
+//     if (label) {
+//         queryParams.push(label);
+//         query += ` AND detections @> $${queryParams.length}::jsonb`;
+//     }
+
+//     if (classId) {
+//         queryParams.push(classId);
+//         query += ` AND detections @> $${queryParams.length}::jsonb`;
+//     }
+
+//     if (minConfidence) {
+//         queryParams.push(minConfidence);
+//         query += ` AND detections @> $${queryParams.length}::jsonb`;
+//     }
+
+//     try {
+//         // Modify the way JSONB parameters are passed for JSONB containment operations
+//         const formattedQueryParams = queryParams.map(param => {
+//             if (typeof param === 'string') {
+//                 return JSON.stringify([{ label: param }]);
+//             } else if (typeof param === 'number') {
+//                 return JSON.stringify([{ class: param }]);
+//             } else if (typeof param === 'number' && parseFloat(param)) {
+//                 return JSON.stringify([{ confidence: { $gte: parseFloat(param) } }]);
+//             }
+//             return param;
+//         });
+
+//         const result = await pool.query(query, formattedQueryParams);
+//         res.status(200).json(result.rows);
+//     } catch (error) {
+//         console.error('Error fetching detection data', error);
+//         res.status(500).json({ error: 'Internal server error' });
+//     }
+// });
+
+app.get('/api/detections', async (req, res) => {
+    try {
+        const client = await pool.connect();
+        const result = await client.query('SELECT * FROM detection_instance');
+        client.release();
         res.status(200).json(result.rows);
     } catch (error) {
-        console.error('Error fetching detection data', error);
-        res.status(500).json({ error: 'Internal server error' });
+        console.error('Error retrieving detection data:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
     }
 });
 
