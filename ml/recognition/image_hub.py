@@ -88,7 +88,7 @@ try:
         # Check if the detection meets the confidence threshold
         if any(score > min_confidence for score in scores):
             detection_count[rpi_name] += 1
-            detected_frames[rpi_name].append((frame, boxes, scores, labels, label_names))
+            detected_frames[rpi_name].append((frame.copy(), boxes, scores, labels, label_names))
 
         # Draw bounding boxes on the frame
         for box, score, label_name in zip(boxes, scores, label_names):
@@ -125,22 +125,29 @@ try:
                                 'ymin': float(box[1]),
                                 'ymax': float(box[3]),
                                 'class': int(label),
-                                'label': label_name,
+                                'species': label_name,
                                 'confidence': float(score),
                             }
                             detections.append(detection)
 
                     output = {
-                        'Timestamp': timestamp,
+                        'timestamp': timestamp,
                         'userID': 0,
                         'cameraID': rpi,
                         'Detections': detections
                     }
 
+                    # Save JSON file
                     if detector_output == 'file':
                         with open(f"detected_frames/{rpi}_detection_{int(start_second)}.json", 'w') as f:
                             json.dump(output, f, indent=4)
-                    elif detector_output == 'http':
+
+                    # Save the frame image without bounding boxes
+                    image_save_path = f"detected_frames/{rpi}_frame_{int(start_second)}.jpg"
+                    cv2.imwrite(image_save_path, detected_frames[rpi][middle_index][0])
+
+                    # Post data if the output method is 'http'
+                    if detector_output == 'http':
                         asyncio.run(post_data(box_api_url, output))
 
                 # Reset the counters and list
