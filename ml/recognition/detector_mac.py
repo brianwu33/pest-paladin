@@ -56,7 +56,10 @@ def post_data(url, json_data, image, timeout=30):
         files = {
             'image': ('image.jpg', image, 'image/jpeg')
         }
-        response = requests.post(url, data=json.dumps(json_data), files=files, timeout=timeout)
+        payload = {
+            'data': json.dumps(json_data)
+        }
+        response = requests.post(url, data=payload, files=files, timeout=timeout)
         response.raise_for_status()  # Raise an error for bad status codes
         return response.text
     except Exception as e:
