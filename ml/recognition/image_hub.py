@@ -7,7 +7,7 @@ import cv2
 from PIL import Image
 import os
 import json
-import grequests
+import requests
 from datetime import datetime
 import imagezmq
 
@@ -69,8 +69,9 @@ def post_data(url, json_data, image, timeout=30):
             'data': json.dumps(json_data)
         }
 
-        rs = [grequests.post(url, data=payload, files=files, timeout=timeout)]
-        grequests.map(rs, exception_handler=exception_handler)
+        response = requests.post(url, data=payload, files=files, timeout=timeout)
+        response.raise_for_status()  # Raise an error for bad status codes
+        return response.text
 
         return "Post finished"
     except Exception as e:
