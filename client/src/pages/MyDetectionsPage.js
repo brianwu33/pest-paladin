@@ -3,6 +3,9 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import TopNavBar from '../components/TopNavBar';
 import DataTable from '../components/DataTable'; // Adjust the path as needed
+import '../MyDetectionsPage.css'; // Adjust the path as needed
+
+
 
 
 const MyDetectionsPage = () => {
@@ -33,8 +36,12 @@ const MyDetectionsPage = () => {
     return (
         <div>
             <TopNavBar />
-            <h1>Detection List</h1>
-            <DataTable detections={detections} handleViewClick={handleViewClick} />
+            <div className="detection-page">
+                <h1 className="mb-4 detection-heading">My Detections</h1>
+                <div className="detection-content">
+                    <DataTable detections={detections} handleViewClick={handleViewClick} />
+                </div>
+            </div>
         </div>
     );
 };
