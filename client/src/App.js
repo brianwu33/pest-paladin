@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import Home from './pages/Home';
 import MyDetectionsPage from './pages/MyDetectionsPage';
+import MyDetectionDetailPage from './pages/MyDetectionDetailPage';
 import MyAnalyticsPage from './pages/MyAnalyticsPage';
 import LiveFeedPage from './pages/LiveFeedPage';
 import Profile from './pages/Profile';
@@ -13,6 +14,7 @@ const App =() => {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/my-detections" element={<MyDetectionsPage />} />
+        <Route path="/my-detection/:id" element={<MyDetectionDetailPage />} />
         <Route path="/my-analytics" element={<MyAnalyticsPage />} />
         <Route path="/live-feed" element={<LiveFeedPage />} />
         <Route path="/profile" element={<Profile />} />
