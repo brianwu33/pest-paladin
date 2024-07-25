@@ -121,13 +121,13 @@ try:
                             'ymin': float(box[1]),
                             'ymax': float(box[3]),
                             'class': int(label),
-                            'label': label_name,
+                            'species': label_name,
                             'confidence': float(score),
                         }
                         detections.append(detection)
 
                 output = {
-                    'Timestamp': timestamp,
+                    'timestamp': timestamp,
                     'userID': 0,
                     'cameraID': 0,
                     'Detections': detections
