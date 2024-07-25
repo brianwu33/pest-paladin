@@ -54,14 +54,15 @@ def process_frame(frame):
 def post_data(url, json_data, image, timeout=30):
     try:
         files = {
-            'json_data': (None, json.dumps(json_data), 'application/json'),
             'image': ('image.jpg', image, 'image/jpeg')
         }
-        response = requests.post(url, files=files, timeout=timeout)
+        headers = {'Content-Type': 'application/json'}
+        response = requests.post(url, headers=headers, data=json.dumps(json_data), files=files, timeout=timeout)
         response.raise_for_status()  # Raise an error for bad status codes
         return response.text
     except Exception as e:
         return f"An error occurred: {e}"
+
 
 # Initialize ImageHub
 image_hub = imagezmq.ImageHub()
