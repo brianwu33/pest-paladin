@@ -52,3 +52,35 @@
     top:50%;
     transform: translateY(-50%);
 }
+
+.data-table-container {
+    overflow-x: auto;
+  }
+  
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+    font-size: 16px;
+    text-align: left;
+  }
+  
+  .data-table th,
+  .data-table td {
+    padding: 12px 15px;
+    border: 1px solid #ddd;
+  }
+  
+  .data-table th {
+    background-color: #f4f4f4;
+    font-weight: bold;
+  }
+  
+  .data-table td {
+    background-color: #fdfdfd;
+  }
+  
+  .data-table tbody tr:nth-child(even) {
+    background-color: #f9f9f9;
+  }
+  

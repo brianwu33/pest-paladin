@@ -1,12 +1,11 @@
 import React from 'react';
 import TopNavBar from '../components/TopNavBar';
-
+import DataTable from '../components/DataTable';
 const MyDetectionsPage = () => {
     return (
         <div>
             <TopNavBar />
-            <h1>My Detections</h1>
-            <p>Review your pest trackings.</p>
+            <DataTable/>
         </div>
     );
 };
