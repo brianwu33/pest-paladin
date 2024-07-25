@@ -132,7 +132,8 @@ try:
 
                     output = {
                         'Timestamp': timestamp,
-                        'RPiName': rpi,
+                        'userID': 0,
+                        'cameraID': rpi,
                         'Detections': detections
                     }
 
