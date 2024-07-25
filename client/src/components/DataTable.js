@@ -24,7 +24,7 @@ const DataTable = ({ detections, handleViewClick }) => {
                             <td>{detection.species}</td>
                             <td>{detection.camera_id}</td>
                             <td>
-                                {((new Date(detection.timestamplist[detection.timestamplist.length - 1]) - new Date(detection.timestamplist[0])) / 1000).toFixed(2)} seconds
+                                {Math.round((new Date(detection.timestamplist[detection.timestamplist.length - 1]) - new Date(detection.timestamplist[0])) / 1000)} seconds
                             </td>
                             <td>
                                 <button onClick={() => handleViewClick(detection)}>View</button>
