@@ -8,7 +8,6 @@
 import time
 import torch
 import cv2
-import pyrealsense2 as rs
 from PIL import Image
 import numpy as np
 import os
@@ -16,7 +15,6 @@ import json
 from datetime import datetime
 import asyncio
 import aiohttp
-# import imagezmq
 
 # Check if a GPU is available
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -45,7 +43,7 @@ os.makedirs('detected_frames', exist_ok=True)
 detector_output = 'file'  # Change this to 'http' to post data to an API endpoint
 
 # API endpoint URL (only used if detector_output is 'http')
-box_api_url = 'https://example.com/api'  # Replace with your actual API endpoint
+box_api_url = 'https://example.com/api:port'  # Replace with your actual API endpoint
 
 # Function to process a single frame
 def process_frame(frame):
@@ -70,12 +68,6 @@ async def post_data(url, data):
 # Configure the camera streams
 if camera_source == 'webcam':
     cap = cv2.VideoCapture(0)
-else:
-    pipeline = rs.pipeline()
-    config = rs.config()
-    config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
-    config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
-    profile = pipeline.start(config)
 
 time.sleep(3) # Let camera warm up
 start_second = time.time()
@@ -89,15 +81,6 @@ try:
             if not ret:
                 break
             distance = None
-        else:
-            frames = pipeline.wait_for_frames()
-            color_frame = frames.get_color_frame()
-            depth_frame = frames.get_depth_frame()
-            if not color_frame or not depth_frame:
-                continue
-            frame = np.asanyarray(color_frame.get_data())
-            depth_data = np.asanyarray(depth_frame.get_data())
-            distance = depth_frame.get_distance(320, 240)  # Center point distance
 
         # Process the frame
         boxes, scores, labels, label_names, runtime = process_frame(frame)
@@ -138,15 +121,15 @@ try:
                             'ymin': float(box[1]),
                             'ymax': float(box[3]),
                             'class': int(label),
-                            'label': label_name,
+                            'species': label_name,
                             'confidence': float(score),
                         }
-                        if camera_source == 'realsense':
-                            detection['distance'] = float(distance)
                         detections.append(detection)
 
                 output = {
-                    'Timestamp': timestamp,
+                    'timestamp': timestamp,
+                    'userID': 0,
+                    'cameraID': 0,
                     'Detections': detections
                 }
 
@@ -167,6 +150,4 @@ try:
 finally:
     if camera_source == 'webcam':
         cap.release()
-    else:
-        pipeline.stop()
     cv2.destroyAllWindows()
