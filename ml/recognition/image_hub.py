@@ -118,6 +118,8 @@ try:
 
         # Draw bounding boxes on the frame
         for box, score, label_name in zip(boxes, scores, label_names):
+            if label_name == 'cat':
+                label_name = 'rat'
             if score > min_confidence:
                 x1, y1, x2, y2 = map(int, box)
                 cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
@@ -144,6 +146,8 @@ try:
                     timestamp = datetime.now().isoformat()
                     detections = []
                     for box, score, label, label_name in zip(boxes, scores, labels, label_names):
+                        if label_name == 'cat':
+                            label_name = 'rat'
                         if score > min_confidence:
                             detection = {
                                 'xmin': float(box[0]),
