@@ -3,12 +3,6 @@ import { Carousel } from 'react-bootstrap';
 import Typing from 'react-typing-effect';
 import TypingEffect from '../components/TypingEffect';
 
-
-
-import home from '../assets/images/garden.jpg';
-import smallMouse from '../assets/images/small_mouse.jpg';
-import tracking from '../assets/images/tracking.jpg';
-
 const Slideshow = () => {
     const [activeIndex, setActiveIndex] = useState(0);
 
@@ -20,7 +14,7 @@ const Slideshow = () => {
         <Carousel activeIndex={activeIndex} onSelect={handleSelect}>
                 <Carousel.Item>
                     <img
-                        src = {home}
+                        src = "/images/garden.jpg"
                         alt = {`Slide 1`}
                         className = "d-block w-100"
                         style={{ height: '400px', objectFit: 'cover' }} 
@@ -32,7 +26,7 @@ const Slideshow = () => {
                 </Carousel.Item>
                 <Carousel.Item>
                     <img
-                        src = {tracking}
+                        src = "/images/tracking.jpg"
                         alt = {`Slide 2`}
                         className = "d-block w-100"
                         style={{ height: '400px', objectFit: 'cover' }} 
@@ -44,7 +38,7 @@ const Slideshow = () => {
                 </Carousel.Item>
                 <Carousel.Item>
                     <img
-                        src = {smallMouse}
+                        src = "/images/small_mouse.jpg"
                         alt = {`Slide 3`}
                         className = "d-block w-100"
                         style={{ height: '400px', objectFit: 'cover' }} 

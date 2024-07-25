@@ -5,10 +5,6 @@ import Slideshow from '../components/Slideshow';
 import { Card, Container, Row, Col } from 'react-bootstrap';
 import '../style.css';
 
-import ratEating from '../assets/images/rat_eating.jpg';
-import liveFeed from '../assets/images/live_feed.jpg';
-import analytics from '../assets/images/analytics.jpg';
-
 const Home = () => {
     const navigate = useNavigate();
 
@@ -31,7 +27,7 @@ const Home = () => {
                             onClick={() => handleCardClick('/my-detections')}
                         >
                             <div className="card-img-cover rounded">
-                                <img src={ratEating} alt="Rat-Eating" />
+                                <img src="/images/rat_eating.jpg" alt="Rat-Eating" />
                             </div>
                             <div className="card-overlay">
                                 <Card.Title style={{ color: 'white' }}>
@@ -50,7 +46,7 @@ const Home = () => {
                             onClick={() => handleCardClick('/my-analytics')}
                         >
                             <div className="card-img-cover rounded">
-                                <img src={liveFeed} alt="Live Feed" />
+                                <img src="/images/live_feed.jpg" alt="Live Feed" />
                             </div>
                             <div className="card-overlay">
                                 <Card.Title style={{ color: 'white' }}>
@@ -69,7 +65,7 @@ const Home = () => {
                             onClick={() => handleCardClick('/live-feed')}
                         >
                             <div className="card-img-cover rounded">
-                                <img src={analytics} alt="Analytics" />
+                                <img src="/images/analytics.jpg" alt="Analytics" />
                             </div>
                             <div className="card-overlay">
                                 <Card.Title style={{ color: 'white' }}>
