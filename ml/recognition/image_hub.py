@@ -7,7 +7,7 @@ import cv2
 from PIL import Image
 import os
 import json
-import requests
+import grequests
 from datetime import datetime
 import imagezmq
 
@@ -22,12 +22,15 @@ model.eval()
 # Set the desired frames per second (fps)
 desired_fps = 10
 frame_time = 1.0 / desired_fps
+instance_thresh = 5 # seconds
 
 # Parameters for detection and saving frames
 min_detected_frames = 3  # Minimum number of frames with detections
 min_confidence = 0.5  # Confidence threshold (50%)
 detection_count = {}
 detected_frames = {}
+last_detection_time = {}
+instance_id_counter = {}
 
 # Directory to save detected frames
 os.makedirs('detected_frames', exist_ok=True)
@@ -53,6 +56,9 @@ def process_frame(frame):
     runtime = end_time - start_time
     return boxes, scores, labels, label_names, runtime
 
+def exception_handler(request, exception):
+    print("Request failed: ", exception)
+
 # Function to post data to the API endpoint
 def post_data(url, json_data, image, timeout=30):
     try:
@@ -62,12 +68,13 @@ def post_data(url, json_data, image, timeout=30):
         payload = {
             'data': json.dumps(json_data)
         }
-        response = requests.post(url, data=payload, files=files, timeout=timeout)
-        response.raise_for_status()  # Raise an error for bad status codes
-        return response.text
+
+        rs = [grequests.post(url, data=payload, files=files, timeout=timeout)]
+        grequests.map(rs, exception_handler=exception_handler)
+
+        return "Post finished"
     except Exception as e:
         return f"An error occurred: {e}"
-
 
 # Initialize ImageHub
 image_hub = imagezmq.ImageHub()
@@ -92,6 +99,8 @@ try:
         if rpi_name not in detection_count:
             detection_count[rpi_name] = 0
             detected_frames[rpi_name] = []
+            last_detection_time[rpi_name] = time.time()
+            instance_id_counter[rpi_name] = 1
 
         # Process the frame
         boxes, scores, labels, label_names, runtime = process_frame(frame)
@@ -100,6 +109,12 @@ try:
         if any(score > min_confidence for score in scores):
             detection_count[rpi_name] += 1
             detected_frames[rpi_name].append((frame.copy(), boxes, scores, labels, label_names))
+
+            # Update instance ID if more than 10 seconds have passed since the last detection
+            current_time = time.time()
+            if current_time - last_detection_time[rpi_name] > instance_thresh:
+                instance_id_counter[rpi_name] += 1
+            last_detection_time[rpi_name] = current_time
 
         # Draw bounding boxes on the frame
         for box, score, label_name in zip(boxes, scores, label_names):
@@ -138,7 +153,7 @@ try:
                                 'class': int(label),
                                 'species': label_name,
                                 'confidence': float(score),
-                                'instanceID': 1
+                                'instanceID': instance_id_counter[rpi]
                             }
                             detections.append(detection)
 
