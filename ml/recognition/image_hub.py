@@ -7,7 +7,7 @@ import cv2
 from PIL import Image
 import os
 import json
-import requests
+import grequests
 from datetime import datetime
 import imagezmq
 
@@ -15,32 +15,29 @@ import imagezmq
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 # Load the YOLOv5 model
-# model = torch.hub.load("ultralytics/yolov5", "yolov5s", pretrained=True)
 model = torch.hub.load('ultralytics/yolov5', 'custom', path='weights/best.pt', force_reload=True).to(device)
 model.eval()
 
 # Set the desired frames per second (fps)
 desired_fps = 10
 frame_time = 1.0 / desired_fps
-instance_thresh = 5 # seconds
+instance_thresh = 5  # seconds
 
 # Parameters for detection and saving frames
-min_detected_frames = 3  # Minimum number of frames with detections
 min_confidence = 0.5  # Confidence threshold (50%)
-detection_count = {}
-detected_frames = {}
 last_detection_time = {}
 instance_id_counter = {}
+last_post_time = 0  # Initialize the last post time
 
 # Directory to save detected frames
 os.makedirs('detected_frames', exist_ok=True)
 
 # Variable to select the output method ('file' or 'http')
-detector_output = 'file'  # Change this to 'file' to save data locally
+detector_output = 'file'  # Change this to 'http' to send data to the API endpoint
 
 # API endpoint URL (only used if detector_output is 'http')
 box_api_url = 'https://example.com/api'  # Replace with your actual API endpoint
-timeout = 0.1
+timeout = 3
 
 # Function to process a single frame
 def process_frame(frame):
@@ -69,9 +66,8 @@ def post_data(url, json_data, image, timeout=30):
             'data': json.dumps(json_data)
         }
 
-        response = requests.post(url, data=payload, files=files, timeout=timeout)
-        response.raise_for_status()  # Raise an error for bad status codes
-        return response.text
+        rs = [grequests.post(url, data=payload, files=files, timeout=timeout)]
+        grequests.map(rs, exception_handler=exception_handler)
 
         return "Post finished"
     except Exception as e:
@@ -97,9 +93,7 @@ try:
         
         print(rpi_name)
 
-        if rpi_name not in detection_count:
-            detection_count[rpi_name] = 0
-            detected_frames[rpi_name] = []
+        if rpi_name not in last_detection_time:
             last_detection_time[rpi_name] = time.time()
             instance_id_counter[rpi_name] = 1
 
@@ -108,14 +102,56 @@ try:
 
         # Check if the detection meets the confidence threshold
         if any(score > min_confidence for score in scores):
-            detection_count[rpi_name] += 1
-            detected_frames[rpi_name].append((frame.copy(), boxes, scores, labels, label_names))
-
-            # Update instance ID if more than 10 seconds have passed since the last detection
             current_time = time.time()
+
+            # Update instance ID if more than 5 seconds have passed since the last detection
             if current_time - last_detection_time[rpi_name] > instance_thresh:
                 instance_id_counter[rpi_name] += 1
+            
             last_detection_time[rpi_name] = current_time
+            print(current_time - last_post_time)
+
+            # Check if a second has passed since the last post
+            if current_time - last_post_time >= 1:
+                print("Outputting...")
+
+                timestamp = datetime.now().isoformat()
+                detections = []
+                for box, score, label, label_name in zip(boxes, scores, labels, label_names):
+                    if label_name == 'cat':
+                        label_name = 'rat'
+                    if score > min_confidence:
+                        detection = {
+                            'xmin': float(box[0]),
+                            'xmax': float(box[2]),
+                            'ymin': float(box[1]),
+                            'ymax': float(box[3]),
+                            'class': int(label),
+                            'species': label_name,
+                            'confidence': float(score),
+                            'instanceID': instance_id_counter[rpi_name]
+                        }
+                        detections.append(detection)
+
+                output = {
+                    'timestamp': timestamp,
+                    'userID': 1,
+                    'cameraID': 1,
+                    'Detections': detections
+                }
+
+                if detector_output == 'file':
+                    # Save JSON file locally
+                    with open(f"detected_frames/{rpi_name}_detection_{int(start_second)}.json", 'w') as f:
+                        json.dump(output, f, indent=4)
+                    
+                    # Save the frame image without bounding boxes
+                    image_save_path = f"detected_frames/{rpi_name}_frame_{int(start_second)}.jpg"
+                    cv2.imwrite(image_save_path, frame)
+                elif detector_output == 'http':
+                    # Send data to the API endpoint
+                    _, image = cv2.imencode('.jpg', frame)
+                    post_data(box_api_url, output, image.tobytes(), timeout)
 
         # Draw bounding boxes on the frame
         for box, score, label_name in zip(boxes, scores, label_names):
@@ -136,56 +172,6 @@ try:
             time.sleep(frame_time - elapsed_time)
 
         image_hub.send_reply(b'OK')
-
-        # Check if a second has passed
-        if time.time() - start_second >= 1:
-            for rpi in detection_count:
-                if detection_count[rpi] >= min_detected_frames:
-                    middle_index = len(detected_frames[rpi]) // 2
-                    frame, boxes, scores, labels, label_names = detected_frames[rpi][middle_index]
-
-                    timestamp = datetime.now().isoformat()
-                    detections = []
-                    for box, score, label, label_name in zip(boxes, scores, labels, label_names):
-                        if label_name == 'cat':
-                            label_name = 'rat'
-                        if score > min_confidence:
-                            detection = {
-                                'xmin': float(box[0]),
-                                'xmax': float(box[2]),
-                                'ymin': float(box[1]),
-                                'ymax': float(box[3]),
-                                'class': int(label),
-                                'species': label_name,
-                                'confidence': float(score),
-                                'instanceID': instance_id_counter[rpi]
-                            }
-                            detections.append(detection)
-
-                    output = {
-                        'timestamp': timestamp,
-                        'userID': 1,
-                        'cameraID': 1,
-                        'Detections': detections
-                    }
-
-                    if detector_output == 'file':
-                        # Save JSON file locally
-                        with open(f"detected_frames/{rpi}_detection_{int(start_second)}.json", 'w') as f:
-                            json.dump(output, f, indent=4)
-                        
-                        # Save the frame image without bounding boxes
-                        image_save_path = f"detected_frames/{rpi}_frame_{int(start_second)}.jpg"
-                        cv2.imwrite(image_save_path, detected_frames[rpi][middle_index][0])
-                    elif detector_output == 'http':
-                        # Send data to the API endpoint
-                        _, image = cv2.imencode('.jpg', detected_frames[rpi][middle_index][0])
-                        post_data(box_api_url, output, image.tobytes(), timeout)
-
-                # Reset the counters and list
-                detection_count[rpi] = 0
-                detected_frames[rpi] = []
-            start_second = time.time()
 
         # Break the loop if 'q' is pressed
         if cv2.waitKey(1) & 0xFF == ord('q'):
