@@ -33,7 +33,7 @@ detected_frames = {}
 os.makedirs('detected_frames', exist_ok=True)
 
 # Variable to select the output method ('file' or 'http')
-detector_output = 'file'  # Change this to 'http' to post data to an API endpoint
+detector_output = 'file'  # Change this to 'file' to save data locally
 
 # API endpoint URL (only used if detector_output is 'http')
 box_api_url = 'https://example.com/api'  # Replace with your actual API endpoint
@@ -53,9 +53,14 @@ def process_frame(frame):
     return boxes, scores, labels, label_names, runtime
 
 # Function to post data to the API endpoint
-async def post_data(url, data):
+async def post_data(url, json_data, image):
     async with aiohttp.ClientSession() as session:
-        async with session.post(url, json=data) as response:
+        form_data = aiohttp.FormData()
+        form_data.add_field('json_data', json.dumps(json_data), content_type='application/json')
+        form_data.add_field('image', image, filename='image.jpg', content_type='image/jpeg')
+        
+        async with session.post(url, data=form_data) as response:
+            # return await response.text()
             pass
 
 # Initialize ImageHub
@@ -137,18 +142,18 @@ try:
                         'Detections': detections
                     }
 
-                    # Save JSON file
                     if detector_output == 'file':
+                        # Save JSON file locally
                         with open(f"detected_frames/{rpi}_detection_{int(start_second)}.json", 'w') as f:
                             json.dump(output, f, indent=4)
-
-                    # Save the frame image without bounding boxes
-                    image_save_path = f"detected_frames/{rpi}_frame_{int(start_second)}.jpg"
-                    cv2.imwrite(image_save_path, detected_frames[rpi][middle_index][0])
-
-                    # Post data if the output method is 'http'
-                    if detector_output == 'http':
-                        asyncio.run(post_data(box_api_url, output))
+                        
+                        # Save the frame image without bounding boxes
+                        image_save_path = f"detected_frames/{rpi}_frame_{int(start_second)}.jpg"
+                        cv2.imwrite(image_save_path, detected_frames[rpi][middle_index][0])
+                    elif detector_output == 'http':
+                        # Send data to the API endpoint
+                        _, image = cv2.imencode('.jpg', detected_frames[rpi][middle_index][0])
+                        asyncio.run(post_data(box_api_url, output, image.tobytes()))
 
                 # Reset the counters and list
                 detection_count[rpi] = 0
