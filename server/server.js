@@ -5,8 +5,11 @@ const {Pool} = require('pg');
 const morgan = require("morgan");
 const multer = require('multer');               // Used to handle file uploads
 const sharp = require('sharp')                  // Used for image processing (cropping)
+const cors = require('cors'); // Import the cors package
+
 const app = express();                          // Create an instance of express app
 
+app.use(cors()); // Enable CORS for all routes
 app.use(bodyParser.json());                     // parses HTTP body
 app.use(morgan('dev')); // logs HTTP request/response information
 
