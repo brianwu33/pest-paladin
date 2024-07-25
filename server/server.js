@@ -39,7 +39,7 @@ app.post('/api/detections', async(req, res) =>{
 
     try{
         const result = await pool.query(
-            'INSERT INTO object_detection (timestamp, detections) VALUES ($1, $2) RETURNING *',
+            'INSERT INTO object_detection_raw_data (timestamp, detections) VALUES ($1, $2) RETURNING *',
             [timestamp,JSON.stringify(detections)]
         );
 
@@ -54,7 +54,7 @@ app.post('/api/detections', async(req, res) =>{
 app.get('/api/detections', async (req, res) => {
     const { start, end, label, classId, minConfidence, user, camera } = req.query;
 
-    let query = 'SELECT * FROM object_detection WHERE 1=1';
+    let query = 'SELECT * FROM object_detection_raw_data WHERE 1=1';
     const queryParams = [];
 
     if (start) {
