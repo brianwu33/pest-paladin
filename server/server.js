@@ -202,6 +202,51 @@ app.get('/api/detections/:id', async (req, res) => {
     }
 });
 
+// GET endpoint to return the smallest missing instance_id
+app.get('/api/detections/smallest-missing-id', async (req, res) => {
+    try {
+        const client = await pool.connect();
+        const result = await client.query('SELECT instance_id FROM detection_instance ORDER BY instance_id ASC');
+        client.release();
+
+        const instanceIds = result.rows.map(row => row.instance_id);
+        let smallestMissingId = 1;
+
+        for (let i = 0; i < instanceIds.length; i++) {
+            if (instanceIds[i] !== smallestMissingId) {
+                break;
+            }
+            smallestMissingId++;
+        }
+
+        res.status(200).json({ smallest_missing_instance_id: smallestMissingId });
+    } catch (error) {
+        console.error('Error retrieving smallest missing instance ID:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+// DELETE endpoint to delete data based on instance_id
+app.delete('/api/detections/:id', async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        const client = await pool.connect();
+        const result = await client.query('DELETE FROM detection_instance WHERE instance_id = $1 RETURNING *', [id]);
+        client.release();
+
+        if (result.rowCount > 0) {
+            res.status(200).json({ message: 'Detection instance deleted successfully' });
+        } else {
+            res.status(404).json({ error: 'Detection instance not found' });
+        }
+    } catch (error) {
+        console.error('Error deleting detection data:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+
 // web socket communication
 const http = require("http"); // create an http server
 const server = http.createServer(app); // use the express instance
