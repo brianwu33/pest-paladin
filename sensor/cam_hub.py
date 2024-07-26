@@ -44,7 +44,7 @@ os.makedirs('detected_frames', exist_ok=True)
 detector_output = 'http'  # Change this to 'http' to send data to the API endpoint
 
 # API endpoint URL (only used if detector_output is 'http')
-api_url = 'https://example.com/api'  # Replace with your actual API endpoint
+api_url = 'http://localhost:4000/api/detections'  # Replace with your actual API endpoint
 timeout = 3
 
 # Set port
@@ -105,6 +105,15 @@ def post_data(url, json_data, frame, timeout=3):
     except Exception as e:
         return f"An error occurred: {e}"
 
+def get_smallest_missing_instance_id(api_url):
+    try:
+        response = requests.get(api_url + "/smallest-missing-id")
+        response.raise_for_status()  # Raises an HTTPError for bad responses (4xx or 5xx)
+        data = response.json()
+        return data.get("smallest_missing_instance_id", 0)
+    except Exception:
+        print("api error, setting instance ID to 0 as default")
+        return 0
 
 # Function to create JSON output
 def create_json_output(rpi_name, boxes, scores, labels, label_names, timestamp, instance_id_counter):
@@ -163,7 +172,7 @@ try:
 
         if rpi_name not in last_detection_time:
             last_detection_time[rpi_name] = time.time()
-            instance_id_counter[rpi_name] = 1
+            instance_id_counter[rpi_name] = get_smallest_missing_instance_id(api_url)
 
         # Process the frame
         boxes, scores, labels, label_names, runtime = process_frame(frame)
