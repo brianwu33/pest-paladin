@@ -10,6 +10,12 @@ import json
 import grequests
 from datetime import datetime
 import imagezmq
+import argparse
+
+# Set up argument parser
+parser = argparse.ArgumentParser(description="YOLOv5 Object Detection Script")
+parser.add_argument('--port', type=str, default='5555', help='Port number for ImageHub')
+args = parser.parse_args()
 
 # Check if a GPU is available
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -40,8 +46,8 @@ detector_output = 'http'  # Change this to 'http' to send data to the API endpoi
 api_url = 'https://example.com/api'  # Replace with your actual API endpoint
 timeout = 3
 
-# Set my port
-port = 'tcp://*:5555'
+# Set port
+port = f'tcp://*:{args.port}'
 
 # Function to process a single frame
 def process_frame(frame):
