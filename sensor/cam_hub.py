@@ -11,6 +11,7 @@ import grequests
 from datetime import datetime
 import imagezmq
 import argparse
+import requests
 
 # Set up argument parser
 parser = argparse.ArgumentParser(description="YOLOv5 Object Detection Script")
@@ -70,7 +71,7 @@ def response_handler(response, *args, **kwargs):
         print("No response received")
 
 # Function to post data to the API endpoint
-def post_data(url, json_data, frame, timeout=3):
+def post_data_async(url, json_data, frame, timeout=3):
     try:
         print("Making POST")
         _, image = cv2.imencode('.jpg', frame)
@@ -87,6 +88,23 @@ def post_data(url, json_data, frame, timeout=3):
     except Exception as e:
         print(f"An error occurred during POST: {e}")
         return 
+
+# Function to post data to the API endpoint
+def post_data(url, json_data, frame, timeout=3):
+    try:
+        _, image = cv2.imencode('.jpg', frame)
+        files = {
+            'image': ('image.jpg', image, 'image/jpeg')
+        }
+        payload = {
+            'data': json.dumps(json_data)
+        }
+        response = requests.post(url, data=payload, files=files, timeout=timeout)
+        response.raise_for_status()  # Raise an error for bad status codes
+        return response.text
+    except Exception as e:
+        return f"An error occurred: {e}"
+
 
 # Function to create JSON output
 def create_json_output(rpi_name, boxes, scores, labels, label_names, timestamp, instance_id_counter):
