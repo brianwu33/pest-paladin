@@ -182,26 +182,6 @@ app.get('/api/detections', async (req, res) => {
     }
 });
 
-// GET endpoint to retrieve data based on instance_id
-app.get('/api/detections/:id', async (req, res) => {
-    const { id } = req.params;
-
-    try {
-        const client = await pool.connect();
-        const result = await client.query('SELECT * FROM detection_instance WHERE instance_id = $1', [id]);
-        client.release();
-
-        if (result.rows.length > 0) {
-            res.status(200).json(result.rows[0]);
-        } else {
-            res.status(404).json({ error: 'Detection instance not found' });
-        }
-    } catch (error) {
-        console.error('Error retrieving detection data:', error);
-        res.status(500).json({ error: 'Internal Server Error' });
-    }
-});
-
 // GET endpoint to return the smallest missing instance_id
 app.get('/api/detections/smallest-missing-id', async (req, res) => {
     try {
@@ -222,6 +202,26 @@ app.get('/api/detections/smallest-missing-id', async (req, res) => {
         res.status(200).json({ smallest_missing_instance_id: smallestMissingId });
     } catch (error) {
         console.error('Error retrieving smallest missing instance ID:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+// GET endpoint to retrieve data based on instance_id
+app.get('/api/detections/:id', async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        const client = await pool.connect();
+        const result = await client.query('SELECT * FROM detection_instance WHERE instance_id = $1', [id]);
+        client.release();
+
+        if (result.rows.length > 0) {
+            res.status(200).json(result.rows[0]);
+        } else {
+            res.status(404).json({ error: 'Detection instance not found' });
+        }
+    } catch (error) {
+        console.error('Error retrieving detection data:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
