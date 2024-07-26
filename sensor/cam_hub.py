@@ -90,8 +90,9 @@ def post_data_async(url, json_data, frame, timeout=3):
         return 
 
 # Function to post data to the API endpoint
-def post_data(url, json_data, image, timeout=3):
+def post_data(url, json_data, frame, timeout=3):
     try:
+        _, image = cv2.imencode('.jpg', frame)
         files = {
             'image': ('image.jpg', image, 'image/jpeg')
         }
