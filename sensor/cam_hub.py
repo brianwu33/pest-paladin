@@ -34,7 +34,7 @@ file_seq = 0
 os.makedirs('detected_frames', exist_ok=True)
 
 # Variable to select the output method ('file' or 'http')
-detector_output = 'file'  # Change this to 'http' to send data to the API endpoint
+detector_output = 'http'  # Change this to 'http' to send data to the API endpoint
 
 # API endpoint URL (only used if detector_output is 'http')
 api_url = 'https://example.com/api'  # Replace with your actual API endpoint
@@ -57,12 +57,16 @@ def process_frame(frame):
     runtime = end_time - start_time
     return boxes, scores, labels, label_names, runtime
 
-def exception_handler(request, exception):
-    print("Request failed: ", exception)
+def response_handler(response, *args, **kwargs):
+    if response:
+        print(f"Response status code: {response.status_code}")
+    else:
+        print("No response received")
 
 # Function to post data to the API endpoint
-def post_data(url, json_data, frame, timeout=30):
+def post_data(url, json_data, frame, timeout=3):
     try:
+        print("Making POST")
         _, image = cv2.imencode('.jpg', frame)
         files = {
             'image': ('image.jpg', image.tobytes(), 'image/jpeg')
@@ -71,12 +75,12 @@ def post_data(url, json_data, frame, timeout=30):
             'data': json.dumps(json_data)
         }
 
-        rs = [grequests.post(url, data=payload, files=files, timeout=timeout)]
-        grequests.map(rs, exception_handler=exception_handler)
-
-        return "Post finished"
+        req = grequests.post(url, data=payload, files=files, timeout=timeout, hooks={'response': response_handler})
+        grequests.send(req, grequests.Pool(1))
+        return
     except Exception as e:
-        return f"An error occurred: {e}"
+        print(f"An error occurred during POST: {e}")
+        return 
 
 # Function to create JSON output
 def create_json_output(rpi_name, boxes, scores, labels, label_names, timestamp, instance_id_counter):
