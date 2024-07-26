@@ -173,7 +173,11 @@ app.post('/api/detections', upload.single('image'), async (req, res) => {
 app.get('/api/detections', async (req, res) => {
     try {
         const client = await pool.connect();
-        const result = await client.query('SELECT * FROM detection_instance');
+        const query = `
+            SELECT * FROM detection_instance 
+            ORDER BY timestamplist[1] DESC
+        `;
+        const result = await client.query(query);
         client.release();
         res.status(200).json(result.rows);
     } catch (error) {
