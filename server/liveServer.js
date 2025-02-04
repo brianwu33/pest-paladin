@@ -1,37 +1,28 @@
-// web socket communication
 const express = require("express");
+const WebSocket = require("ws");
+const spawn = require("child_process").spawn
+
 const app = express();
-const http = require("http"); // create an http server
-const server = http.createServer(app); // use the express instance
-const socket = require("socket.io"); // websocket for real-time communication
-const io = socket(server,{
-    cors:{
-        origin:"http://localhost:3000", // where is the frontend going to be running on
-        methods: ["GET", "POST"] // only allows get and post
-    }
+const port = 5000;
+
+
+// spawn ffmpeg process
+const ffmpeg = spawn("ffmpeg", ["-f", "v4l2", "-i", "/dev/video0", "-vf", "scale=640:480", "-f", "mjpeg", "-"]);
+
+const wss = new WebSocket.Server({ noServer: true});
+
+wss.on("connection", (ws) => {
+    console.log("Client connected to video stream");
+
+    ffmpeg.stdout.on("data", (data) => ws.send(data));
+
+    ws.on("close", () => console.log("Client disconnected"));
 });
 
-io.on("connection", (socket) =>{ // listen for new connections, create new socket instance
-    console.log("Client connected: ", socket.id);
-    // connect via socket.id
-    socket.on("offer", (payload) =>{
-        io.to(payload.target).emit("offer", payload);
-    });
+const server = app. listen(port, ()=> console.log(`Video Server on port ${port}`));
 
-    socket.on("answer", (payload) => {
-        io.to(payload.target).emit("answer", payload);
-    });
-    socket.on("ice-candidate", (incoming) =>{
-        io.to(incoming.target).emit("ice-candidate", incoming);
-    });
-
-    socket.on("disconnect", ()=>{
-        console.log("Client disconnected:", socket.id);
-    });
-});
-
-const PORT = 3001;
-// listen for connection requests
-app.listen(PORT, () => {
-    console.log(`Server listening on ${PORT}`);
+server.on("upgrade", (request, socket, head) => {
+    wss.handleUpgrade(request,socket,head, (ws) => {
+        wss.emit("connection", ws,request);
+    })
 });
