@@ -6,11 +6,14 @@ import DataTable from '../components/DataTable'; // Adjust the path as needed
 import '../MyDetectionsPage.css'; // Adjust the path as needed
 
 
-
-
 const MyDetectionsPage = () => {
     const [detections, setDetections] = useState([]);
+    const [isCalender, setCalenderOrList] = useState(true); // true for calendar view, false for list view
     const navigate = useNavigate();
+
+    const toggleMode = () => {
+        setCalenderOrList(!isCalender);
+    }
 
     useEffect(() => {
         const fetchDetections = async () => {
@@ -25,7 +28,6 @@ const MyDetectionsPage = () => {
                 console.error('Error fetching detections:', error);
             }
         };
-
         fetchDetections();
     }, []);
 
@@ -38,9 +40,11 @@ const MyDetectionsPage = () => {
             <TopNavBar />
             <div className="detection-page">
                 <h1 className="mb-4 detection-heading">My Detections</h1>
-                <div className="detection-content">
-                    <DataTable detections={detections} handleViewClick={handleViewClick} />
-                </div>
+                {detections.length > 0 && (
+                    <div className="detection-content">
+                        <DataTable detections={detections} handleViewClick={handleViewClick} />
+                    </div>
+                )};
             </div>
         </div>
     );
