@@ -1,3 +1,5 @@
+// Deprecated
+
 import React from 'react';
 import { useLocation, useParams } from 'react-router-dom';
 import TopNavBar from '../components/TopNavBar';
@@ -6,7 +8,7 @@ import { Container, Row, Col, Card, ListGroup } from 'react-bootstrap';
 import '../MyDetectionsPage.css'; // Adjust the path as needed
 
 
-const MyDetectionDetailPage = () => {
+const DetectionDetails = () => {
     const location = useLocation();
     const { id } = useParams();
     const { detection } = location.state;
@@ -53,4 +55,4 @@ const MyDetectionDetailPage = () => {
     );
 };
 
-export default MyDetectionDetailPage;
+export default DetectionDetails;

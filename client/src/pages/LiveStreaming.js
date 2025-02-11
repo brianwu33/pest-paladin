@@ -5,7 +5,7 @@ import io from "socket.io-client"
 
 const socket = io.connect("http://localhost:5000") // route to backend
 
-const LiveFeedPage = () => {
+const LiveStreaming = () => {
     const [isStreaming, setIsStreaming] = useState("false")
     const videoRef = useRef(null);
 
@@ -36,4 +36,4 @@ const LiveFeedPage = () => {
     );
 };
 
-export default LiveFeedPage;
+export default LiveStreaming;

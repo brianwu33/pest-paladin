@@ -1,7 +1,7 @@
 import React from 'react';
 import TopNavBar from '../components/TopNavBar';
 
-const MyAnalyticsPage = () => {
+const Dashboard = () => {
     return (
         <div>
             <TopNavBar />
@@ -11,4 +11,4 @@ const MyAnalyticsPage = () => {
     );
 };
 
-export default MyAnalyticsPage;
+export default Dashboard;
