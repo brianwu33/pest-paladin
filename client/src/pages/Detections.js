@@ -1,3 +1,5 @@
+// Deprecated
+
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
@@ -6,7 +8,7 @@ import DataTable from '../components/DataTable'; // Adjust the path as needed
 import '../MyDetectionsPage.css'; // Adjust the path as needed
 
 
-const MyDetectionsPage = () => {
+const Detections = () => {
     const [detections, setDetections] = useState([]);
     const [isCalender, setCalenderOrList] = useState(true); // true for calendar view, false for list view
     const navigate = useNavigate();
@@ -50,4 +52,4 @@ const MyDetectionsPage = () => {
     );
 };
 
-export default MyDetectionsPage;
+export default Detections;
