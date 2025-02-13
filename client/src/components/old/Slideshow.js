@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Carousel } from 'react-bootstrap';
 import Typing from 'react-typing-effect';
-import TypingEffect from '../components/TypingEffect';
+import TypingEffect from '../TypingEffect';
 
 const Slideshow = () => {
     const [activeIndex, setActiveIndex] = useState(0);
