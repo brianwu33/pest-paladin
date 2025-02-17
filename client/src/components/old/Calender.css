@@ -8,3 +8,10 @@
     flex: 1;
     display: flex;
 }
+
+.month-grid {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 7;
+    grid-template-rows: 5
+}

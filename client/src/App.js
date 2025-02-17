@@ -6,6 +6,7 @@ import React from 'react';
 // import MyAnalyticsPage from './pages/MyAnalyticsPage';
 // import LiveFeedPage from './pages/LiveFeedPage';
 // import Profile from './pages/Profile';
+import StreamSender from './components/StreamSender';
 import Login from './pages/Login'
 
 // const App =() => {
@@ -19,7 +20,8 @@ import Login from './pages/Login'
 //         <Route path="/my-analytics" element={<MyAnalyticsPage />} />
 //         <Route path="/live-feed" element={<LiveFeedPage />} />
 //         <Route path="/profile" element={<Profile />} />
-//     </Routes>
+//         <Route path="/sender" element = {<StreamSender />}/>
+//    </Routes>
 //     </Router>
 //   );
 // }
