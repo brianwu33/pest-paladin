@@ -1,5 +1,5 @@
 import React from 'react'
-import TopNavBar from '../components/TopNavBar';
+import TopNavBar from '../components/old/TopNavBar';
 
 const Profile = () =>{
     return (
