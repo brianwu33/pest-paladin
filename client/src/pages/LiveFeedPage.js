@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import TopNavBar from '../components/TopNavBar';
+import TopNavBar from '../components/old/TopNavBar';
 import io from "socket.io-client"
 
 const LiveFeedPage = () => {
@@ -9,7 +9,7 @@ const LiveFeedPage = () => {
 
     useEffect(() => {
         // Initialize socket.io connection once
-        socket.current = io('http://localhost:5000');
+        socket.current = io('http://localhost:2000');
 
         return () => {
             socket.current.disconnect();
