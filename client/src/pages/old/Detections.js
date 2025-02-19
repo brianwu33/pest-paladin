@@ -3,9 +3,9 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import TopNavBar from '../components/TopNavBar';
-import DataTable from '../components/DataTable'; // Adjust the path as needed
-import '../MyDetectionsPage.css'; // Adjust the path as needed
+import TopNavBar from '../../components/old/TopNavBar';
+import DataTable from '../../components/old/DataTable'; // Adjust the path as needed
+
 
 
 const Detections = () => {

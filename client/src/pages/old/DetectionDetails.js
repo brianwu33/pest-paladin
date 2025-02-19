@@ -2,10 +2,9 @@
 
 import React from 'react';
 import { useLocation, useParams } from 'react-router-dom';
-import TopNavBar from '../components/TopNavBar';
+import TopNavBar from '../../components/old/TopNavBar';
 import { Buffer } from 'buffer';
 import { Container, Row, Col, Card, ListGroup } from 'react-bootstrap';
-import '../MyDetectionsPage.css'; // Adjust the path as needed
 
 
 const DetectionDetails = () => {

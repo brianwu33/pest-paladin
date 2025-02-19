@@ -2,10 +2,9 @@
 
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import TopNavBar from '../components/TopNavBar';
-import Slideshow from '../components/Slideshow';
+import TopNavBar from '../../components/old/TopNavBar';
+import Slideshow from '../../components/old/Slideshow';
 import { Card, Container, Row, Col } from 'react-bootstrap';
-import '../style.css';
 
 const Home = () => {
     const navigate = useNavigate();
