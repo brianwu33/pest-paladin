@@ -1,4 +1,6 @@
 import requests
+import json
+from datetime import datetime
 
 url = "http://server-ip:3000/data" # use express erver IP
 
@@ -38,7 +40,12 @@ scores = [0.9, 0.7]
 labels = [1, 2]
 label_names = ["rat", "squirrel"]
 
-response = requests.port(url, json=json_data)
+response = requests.post(url, json=json_data)
 
 # testing
-print(response.json())
+try:
+    response = requests.post(url, json=json_data)
+    response.raise_for_status()  # Raise error if request fails
+    print("Response from server:", response.json())  # Print server response
+except requests.exceptions.RequestException as e:
+    print("Error sending data:", e)
