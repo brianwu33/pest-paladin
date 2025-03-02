@@ -1,17 +1,25 @@
 require("dotenv").config();
 const express = require("express");
-const bodyParser = require("body-parser");
 const cors = require("cors");
 const morgan = require("morgan");
+const db = require("./config/db.js")
 
-const detectionRoutes = require("./routes/detections");
+// routes
+const detectionRoutes = require("./routes/detectionRoutes.js");
+const trackingRoutes = require("./routes/trackingRoutes.js");
+const analyticRoutes = require("./routes/analyticRoutes.js");
 
 const app = express();
 
 // Middleware
 app.use(cors());
-app.use(bodyParser.json());
+app.use(express.json());
 app.use(morgan("dev"));
+
+// configure db connections with AWS postgres
+db.connect().then(() => console.log("Connected to PostgresSQL")).catch(
+  (err)=> console.error("PostgreSQL connection error:", err)
+);
 
 // Basic route
 app.get("/", (req, res) => {
@@ -20,9 +28,11 @@ app.get("/", (req, res) => {
 
 // Routes
 app.use("/api/detections", detectionRoutes);
+app.use("/api/trackings", trackingRoutes);
+app.use("/api/analytics", analyticRoutes);
 
 // Start Server
 const PORT = process.env.PORT || 3001;
-server.listen(PORT, "0.0.0.0", () => {
+app.listen(PORT, "0.0.0.0", () => {
   console.log(`Server listening on ${PORT}`);
 });
