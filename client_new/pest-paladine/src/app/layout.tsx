@@ -1,4 +1,3 @@
-// app/layout.tsx
 import type { Metadata } from "next";
 import { ClerkProvider, SignedIn, SignedOut } from "@clerk/nextjs";
 import "./globals.css";
@@ -6,23 +5,25 @@ import Header from "./components/Header";
 import AppSidebar from "./components/Sidebar";
 import { AuthRedirect } from "./components/AuthRedirect";
 import { SidebarProvider } from "@/components/ui/sidebar";
+import AuthHandler from "./components/AuthHandler"; // ✅ Import AuthHandler
 
 export const metadata: Metadata = {
   title: "Pest Paladine",
   description: "Protect Your Lovely Garden",
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <ClerkProvider>
       <html lang="en">
         <body className="flex h-screen">
-          {/* Redirect Logic to Ensure Users are in the Right Place */}
+          {/* Redirect Logic */}
           <AuthRedirect />
+
+          {/* ✅ Ensures JWT Handling is client-side */}
+          <SignedIn>
+            <AuthHandler />
+          </SignedIn>
 
           <SidebarProvider>
             <div className="flex w-full">

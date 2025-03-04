@@ -1,16 +1,22 @@
 const express = require("express");
 const { upload, getImageFromS3 } = require("../middlewares/upload");
-const { saveDetection, getAllDetections, getDetectionById } = require("../controllers/detectionsController");
+const {
+  saveDetection,
+  getAllDetections,
+  getDetectionById,
+} = require("../services/detectionService");
+const authMiddleware = require("../middlewares/authMiddleware"); // Import auth middleware
 
 const router = express.Router();
 
-// Debugging Middleware - Check `req.body` and `req.file`
-router.post("/uploadDetection",
+// 🔓 Allow all cameras to upload detection data (NO AUTH)
+router.post(
+  "/uploadDetection",
   (req, res, next) => {
     console.log("Before upload middleware, req.body:", req.body);
     next();
   },
-  upload.single("image"), // This must run BEFORE `saveDetection`
+  upload.single("image"),
   (req, res, next) => {
     console.log("After upload middleware, req.file:", req.file);
     if (!req.file) {
@@ -21,14 +27,9 @@ router.post("/uploadDetection",
   saveDetection
 );
 
-// Fetch all detections
-router.get("/", getAllDetections);
-
-// Route to retrieve an image from S3
-router.get("/image/:imageKey", getImageFromS3);
-
-// Get detection by instance ID
-router.get("/:id", getDetectionById);
-
+// 🔐 Require authentication for all user requests (web & mobile)
+router.get("/", authMiddleware, getAllDetections);
+router.get("/:id", authMiddleware, getDetectionById);
+router.get("/image/:imageKey", getImageFromS3); // No auth needed for S3 images
 
 module.exports = router;
