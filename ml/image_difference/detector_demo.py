@@ -3,7 +3,6 @@ import cv2 as cv
 import time
 import json
 import torch
-import onnxruntime
 from PIL import Image
 import argparse
 import pathlib
@@ -17,7 +16,7 @@ pathlib.PosixPath = pathlib.WindowsPath
 # Parameterization via argparse
 # ------------------------
 parser = argparse.ArgumentParser(description="Image Difference with YOLO Object Detection")
-parser.add_argument("--min_diff_size", type=int, default=1000, help="Minimum difference size (w*h)")
+parser.add_argument("--min_diff_size", type=int, default=128, help="Minimum difference size (w*h)")
 parser.add_argument("--threshold_value", type=int, default=50, help="Fixed threshold value")
 parser.add_argument("--use_adaptive_threshold", action="store_true", help="Use adaptive thresholding")
 parser.add_argument("--adaptive_block_size", type=int, default=11, help="Adaptive thresholding block size (must be odd)")
@@ -189,7 +188,7 @@ if args.bg_method == "baseline":
         baseline_gray = cv.medianBlur(baseline_gray, args.noise_filter_kernel)
 else:
     if args.bg_method == "mog2":
-        bg_subtractor = cv.createBackgroundSubtractorMOG2(varThreshold=50, detectShadows=False)
+        bg_subtractor = cv.createBackgroundSubtractorMOG2(varThreshold=32, detectShadows=False, history=500)
     elif args.bg_method == "knn":
         bg_subtractor = cv.createBackgroundSubtractorKNN()
 
