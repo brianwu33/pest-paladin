@@ -2,7 +2,12 @@ import requests
 import json
 from datetime import datetime
 
-url = "http://server-ip:3000/data" # use express erver IP
+d_metaData_url = "http://localhost:3001/data" # use express erver IP
+d_details_url = "http://localhost:3001/data" # use express erver IP
+t_metaData_url = "http://localhost:3001/data" # use express erver IP
+t_details_url = "http://localhost:3001/data" # use express erver IP
+d_details_url = "http://localhost:3001/api/detection/uploadDetection"
+
 
 # define some min confidence threshold
 min_confidence = 0.5
