@@ -24,19 +24,23 @@ parser.add_argument("--adaptive_block_size", type=int, default=11, help="Adaptiv
 parser.add_argument("--adaptive_C", type=int, default=2, help="Adaptive thresholding constant C")
 parser.add_argument("--blur_kernel", type=int, nargs=2, default=(5, 5), help="Kernel size for Gaussian blur")
 parser.add_argument("--bg_method", type=str, choices=["baseline", "mog2", "knn"], default="mog2", help="Background subtraction method")
-parser.add_argument("--roi_margin", type=float, default=0.5, help="Margin ratio to expand ROI (e.g., 0.1 for 10%)")
+parser.add_argument("--roi_margin", type=float, default=1, help="Margin ratio to expand ROI (e.g., 0.1 for 10%)")
 parser.add_argument("--resize_factor", type=float, default=1.0, help="Resize factor for processing (e.g. 0.5 for half resolution)")
 parser.add_argument("--cluster_distance", type=int, default=50, help="Distance threshold for clustering bounding boxes")
 # New arguments for noise filtering
 parser.add_argument("--apply_noise_filter", action="store_true", help="Apply additional noise filtering using median blur")
 parser.add_argument("--noise_filter_kernel", type=int, default=3, help="Kernel size for median noise filter (must be odd)")
+# New argument to decide when to pass the whole image to YOLO
+parser.add_argument("--yolo_whole_thresh", type=float, default=0.5,
+                    help="If the combined ROI area exceeds this fraction of the total image area, pass the whole image to YOLO")
 args = parser.parse_args()
 
 # ------------------------
 # YOLO Model Initialization
 # ------------------------
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-model = torch.hub.load('ultralytics/yolov5', 'custom', path='weights/yolov5s_v2.pt').to(device)
+# model = torch.hub.load('ultralytics/yolov5', 'custom', path='weights/yolov5s_v2.pt').to(device)
+model = torch.hub.load('ultralytics/yolov5', 'custom', path='weights/yolov5x_v2.pt').to(device)
 
 # ------------------------
 # Intel RealSense Capture Setup
@@ -159,7 +163,8 @@ def run_yolo_on_region(frame, bbox):
         cv.putText(cropped_region, f"{name} ({conf:.2f})", (int(x1), int(y1)-10),
                    cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
     
-    cv.imshow("YOLO Detection", cropped_region)
+    # Optionally, you could display or further process cropped_region here.
+    # cv.imshow("YOLO Detection", cropped_region)
 
 # ------------------------
 # Background Initialization
@@ -240,19 +245,41 @@ while True:
 
     # Cluster the already expanded bounding boxes
     merged_boxes = cluster_bounding_boxes(expanded_boxes, args.cluster_distance) if expanded_boxes else []
-    for bbox in merged_boxes:
-        # Scale ROI back to original frame coordinates if resized
-        if args.resize_factor != 1.0:
-            scale = 1.0 / args.resize_factor
-            x, y, w, h = bbox
-            bbox = (int(x * scale), int(y * scale), int(w * scale), int(h * scale))
-        # Convert rectangular ROI to a square ROI for additional context
-        square_bbox = make_square_bbox(bbox, original_frame.shape)
-        cv.rectangle(original_frame, (square_bbox[0], square_bbox[1]),
-                    (square_bbox[0] + square_bbox[2], square_bbox[1] + square_bbox[3]), (0, 255, 0), 2)
-        run_yolo_on_region(original_frame, square_bbox)
+
+    # Create a color version of the threshold image to draw ROI boxes
+    thresh_with_boxes = cv.cvtColor(thresh, cv.COLOR_GRAY2BGR)
+    
+    # Draw the ROI boxes (in resized coordinates) on the threshold image
+    for box in merged_boxes:
+        # For visualization, convert the rectangular ROI to a square ROI
+        square_box = make_square_bbox(box, gray_frame.shape)
+        cv.rectangle(thresh_with_boxes, (square_box[0], square_box[1]),
+                     (square_box[0] + square_box[2], square_box[1] + square_box[3]), (0, 255, 0), 2)
+
+    # Determine if the combined ROI area exceeds the threshold and process accordingly
+    if merged_boxes:
+        union_bbox_all = union_box(merged_boxes)
+        union_area = union_bbox_all[2] * union_bbox_all[3]
+        total_area = original_frame.shape[0] * original_frame.shape[1]
+        if union_area > args.yolo_whole_thresh * total_area:
+            # Run YOLO on the whole image
+            run_yolo_on_region(original_frame, (0, 0, original_frame.shape[1], original_frame.shape[0]))
+        else:
+            # Process each merged bounding box
+            for bbox in merged_boxes:
+                # Scale ROI back to original frame coordinates if resized
+                if args.resize_factor != 1.0:
+                    scale = 1.0 / args.resize_factor
+                    x, y, w, h = bbox
+                    bbox = (int(x * scale), int(y * scale), int(w * scale), int(h * scale))
+                # Convert rectangular ROI to a square ROI for additional context
+                square_bbox = make_square_bbox(bbox, original_frame.shape)
+                cv.rectangle(original_frame, (square_bbox[0], square_bbox[1]),
+                             (square_bbox[0] + square_bbox[2], square_bbox[1] + square_bbox[3]), (0, 255, 0), 2)
+                run_yolo_on_region(original_frame, square_bbox)
 
     diff_data.append({"timestamp": time.time(), "regions": merged_boxes})
+    cv.imshow('Background Subtraction', thresh_with_boxes)
     cv.imshow('Differences', original_frame)
     
     # Wait indefinitely for a key press; press 'q' to quit.
