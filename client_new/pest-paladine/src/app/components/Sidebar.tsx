@@ -50,7 +50,7 @@ export default function AppSidebar() {
                       <Link
                         href={url}
                         className={`flex items-center gap-5 px-4 py-7 rounded-xl transition 
-                        text-xl font-medium tracking-wide
+                        text-xl font-normal tracking-wide
                         ${
                           isActive
                             ? "bg-green-100 text-green-700 shadow-xl hover:bg-green-100 hover:text-green-700"
