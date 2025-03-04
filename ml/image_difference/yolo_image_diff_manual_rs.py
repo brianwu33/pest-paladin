@@ -26,7 +26,7 @@ parser.add_argument("--blur_kernel", type=int, nargs=2, default=(5, 5), help="Ke
 parser.add_argument("--bg_method", type=str, choices=["baseline", "mog2", "knn"], default="mog2", help="Background subtraction method")
 parser.add_argument("--roi_margin", type=float, default=0.5, help="Margin ratio to expand ROI (e.g., 0.1 for 10%)")
 parser.add_argument("--resize_factor", type=float, default=1.0, help="Resize factor for processing (e.g. 0.5 for half resolution)")
-parser.add_argument("--cluster_distance", type=int, default=20, help="Distance threshold for clustering bounding boxes")
+parser.add_argument("--cluster_distance", type=int, default=50, help="Distance threshold for clustering bounding boxes")
 # New arguments for noise filtering
 parser.add_argument("--apply_noise_filter", action="store_true", help="Apply additional noise filtering using median blur")
 parser.add_argument("--noise_filter_kernel", type=int, default=3, help="Kernel size for median noise filter (must be odd)")
@@ -58,15 +58,21 @@ def union_box(boxes):
     y_max = max(box[1] + box[3] for box in boxes)
     return (x_min, y_min, x_max - x_min, y_max - y_min)
 
-def boxes_are_adjacent(boxA, boxB, threshold):
-    """Check if boxB is adjacent to boxA within a given threshold."""
+def boxes_overlap_or_close(boxA, boxB, threshold):
     xA, yA, wA, hA = boxA
     xB, yB, wB, hB = boxB
     leftA, rightA = xA, xA + wA
-    leftB, rightB = xB, xB + wB
     topA, bottomA = yA, yA + hA
+    leftB, rightB = xB, xB + wB
     topB, bottomB = yB, yB + hB
 
+    # 1) Check if they actually overlap in x and y
+    overlap_in_x = not (rightA < leftB or leftA > rightB)
+    overlap_in_y = not (bottomA < topB or topA > bottomB)
+    if overlap_in_x and overlap_in_y:
+        return True  # They do intersect/overlap
+
+    # 2) If they do not overlap, optionally allow "close" merges if gap <= threshold
     gap_x = 0
     if rightA < leftB:
         gap_x = leftB - rightA
@@ -79,7 +85,7 @@ def boxes_are_adjacent(boxA, boxB, threshold):
     elif bottomB < topA:
         gap_y = topA - bottomB
 
-    return gap_x <= threshold and gap_y <= threshold
+    return (gap_x <= threshold) and (gap_y <= threshold)
 
 def cluster_bounding_boxes(boxes, distance_threshold):
     """Cluster nearby bounding boxes into groups and return merged boxes."""
@@ -93,7 +99,7 @@ def cluster_bounding_boxes(boxes, distance_threshold):
         while changed:
             changed = False
             for b in boxes_copy[:]:
-                if boxes_are_adjacent(merged, b, distance_threshold):
+                if boxes_overlap_or_close(merged, b, distance_threshold):
                     cluster.append(b)
                     boxes_copy.remove(b)
                     merged = union_box(cluster)
@@ -229,20 +235,21 @@ while True:
         if w * h > args.min_diff_size:
             boxes.append((x, y, w, h))
 
-    # Cluster nearby bounding boxes and then expand each ROI
-    merged_boxes = cluster_bounding_boxes(boxes, args.cluster_distance) if boxes else []
+    # Expand each detected bounding box before clustering
+    expanded_boxes = [expand_bbox(box, args.roi_margin, gray_frame.shape) for box in boxes]
+
+    # Cluster the already expanded bounding boxes
+    merged_boxes = cluster_bounding_boxes(expanded_boxes, args.cluster_distance) if expanded_boxes else []
     for bbox in merged_boxes:
-        # Expand ROI in the processed (resized) coordinate system
-        expanded_bbox = expand_bbox(bbox, args.roi_margin, gray_frame.shape)
         # Scale ROI back to original frame coordinates if resized
         if args.resize_factor != 1.0:
             scale = 1.0 / args.resize_factor
-            x, y, w, h = expanded_bbox
-            expanded_bbox = (int(x * scale), int(y * scale), int(w * scale), int(h * scale))
+            x, y, w, h = bbox
+            bbox = (int(x * scale), int(y * scale), int(w * scale), int(h * scale))
         # Convert rectangular ROI to a square ROI for additional context
-        square_bbox = make_square_bbox(expanded_bbox, original_frame.shape)
+        square_bbox = make_square_bbox(bbox, original_frame.shape)
         cv.rectangle(original_frame, (square_bbox[0], square_bbox[1]),
-                     (square_bbox[0] + square_bbox[2], square_bbox[1] + square_bbox[3]), (0, 255, 0), 2)
+                    (square_bbox[0] + square_bbox[2], square_bbox[1] + square_bbox[3]), (0, 255, 0), 2)
         run_yolo_on_region(original_frame, square_bbox)
 
     diff_data.append({"timestamp": time.time(), "regions": merged_boxes})
