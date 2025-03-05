@@ -8,7 +8,6 @@ const authMiddleware = require("./middlewares/authMiddleware.js"); // Import aut
 
 // Import Routes
 const detectionRoutes = require("./routes/detectionRoutes.js");
-const trackingRoutes = require("./routes/trackingRoutes.js");
 const analyticRoutes = require("./routes/analyticRoutes.js");
 const cameraRoutes = require("./routes/cameraRoutes.js"); // ✅ Add Camera Routes
 
@@ -47,7 +46,6 @@ app.get("/hi", (req, res) => {
 
 // Protected Routes (Require Authentication)
 app.use("/api/detections", authMiddleware, detectionRoutes);
-app.use("/api/trackings", authMiddleware, trackingRoutes);
 app.use("/api/analytics", authMiddleware, analyticRoutes);
 app.use("/api/cameras", authMiddleware, cameraRoutes); // ✅ Add Cameras Route (Protected)
 
