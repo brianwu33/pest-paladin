@@ -99,20 +99,39 @@ router.post(
 
 /**
  * 🔹 Fetch All Detections (GET) - Requires Authentication
+ * ✅ Returns paginated list of detections
+ * ✅ Only includes necessary fields for the Detections page
  */
 router.get("/", authMiddleware, async (req, res) => {
   try {
     const userID = req.auth.userId; // Extract userId from JWT
+    const page = parseInt(req.query.page) || 1; // Default page = 1
+    const limit = parseInt(req.query.limit) || 10; // Default limit = 10
+    const offset = (page - 1) * limit; // Calculate pagination offset
 
+    // Get total count of detections for pagination
+    const countResult = await pool.query(
+      "SELECT COUNT(*) FROM detections WHERE user_id = $1",
+      [userID]
+    );
+    const totalDetections = parseInt(countResult.rows[0].count);
+    const totalPages = Math.ceil(totalDetections / limit);
+
+    // Query for paginated detections
     const query = `
       SELECT detection_id, timestamp, species, camera_name
-      FROM detections 
+      FROM detections
       WHERE user_id = $1
-      ORDER BY timestamp DESC;
+      ORDER BY timestamp DESC
+      LIMIT $2 OFFSET $3;
     `;
-    const result = await pool.query(query, [userID]);
+    const result = await pool.query(query, [userID, limit, offset]);
 
-    res.status(200).json(result.rows);
+    res.status(200).json({
+      detections: result.rows,
+      totalPages,
+      currentPage: page,
+    });
   } catch (error) {
     console.error("❌ Error retrieving detection data:", error);
     res.status(500).json({ error: "Internal Server Error" });
@@ -154,5 +173,35 @@ router.get("/:id", authMiddleware, async (req, res) => {
  * 🔹 Retrieve Image from S3 (GET) - Public Access
  */
 router.get("/image/:imageKey", getImageFromS3); // No auth needed for S3 images
+
+
+/**
+ * 🔹 Delete a Single Detection (GET) - Public Access
+ */
+router.delete("/:detection_id", authMiddleware, async (req, res) => {
+  try {
+    const { detection_id } = req.params;
+    const userID = req.auth.userId; // Extract userId from JWT
+
+    // Ensure detection belongs to the authenticated user
+    const detection = await pool.query(
+      "SELECT * FROM detections WHERE detection_id = $1 AND user_id = $2",
+      [detection_id, userID]
+    );
+
+    if (detection.rows.length === 0) {
+      return res.status(404).json({ error: "Detection not found or unauthorized" });
+    }
+
+    // Delete detection
+    await pool.query("DELETE FROM detections WHERE detection_id = $1", [detection_id]);
+
+    res.status(200).json({ message: "Detection deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting detection:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
 
 module.exports = router;
