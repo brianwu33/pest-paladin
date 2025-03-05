@@ -5,6 +5,16 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import axios from "axios";
+import Cookies from "js-cookie";
+
+// Load API Base URL from environment variables
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL + "/api/cameras";
+
+// Helper function to get JWT from cookies
+const getAuthHeaders = () => {
+  const token = Cookies.get("jwt_token");
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
 
 export function CameraPairingModal({ onClose }: { onClose: () => void }) {
   const [cameras, setCameras] = useState<{ camera_id: string; camera_name: string }[]>([]);
@@ -18,14 +28,17 @@ export function CameraPairingModal({ onClose }: { onClose: () => void }) {
   }, []);
 
   /**
-   * 🔹 Fetch Paired Cameras (GET `/api/cameras`)
-   * ✅ Authenticated via HttpOnly cookies
+   * 🔹 Fetch Paired Cameras (GET `${API_BASE_URL}`)
+   * ✅ Authenticated via JWT in Authorization header
    */
   const fetchCameras = async () => {
     try {
       setError("");
-      const response = await axios.get("/api/cameras", { withCredentials: true });
-      setCameras(response.data.cameras); // Ensure backend response structure matches
+      console.log("API Request:", API_BASE_URL);
+      const response = await axios.get(`${API_BASE_URL}`, {
+        headers: getAuthHeaders(), // Attach JWT token
+      });
+      setCameras(response.data.cameras);
     } catch (error) {
       console.error("Error fetching cameras:", error);
       setError("Failed to fetch paired cameras.");
@@ -33,7 +46,7 @@ export function CameraPairingModal({ onClose }: { onClose: () => void }) {
   };
 
   /**
-   * 🔹 Pair a Camera (POST `/api/cameras/pair`)
+   * 🔹 Pair a Camera (POST `${API_BASE_URL}/pair`)
    * ✅ Requires valid `cameraID` and `cameraName`
    */
   const pairCamera = async () => {
@@ -46,9 +59,11 @@ export function CameraPairingModal({ onClose }: { onClose: () => void }) {
     setError("");
     try {
       await axios.post(
-        "/api/cameras/pair",
+        `${API_BASE_URL}/pair`,
         { cameraID, cameraName },
-        { withCredentials: true }
+        {
+          headers: getAuthHeaders(), // Attach JWT token
+        }
       );
       setCameraID("");
       setCameraName("");
@@ -61,14 +76,16 @@ export function CameraPairingModal({ onClose }: { onClose: () => void }) {
   };
 
   /**
-   * 🔹 Unpair a Camera (DELETE `/api/cameras/unpair/:cameraID`)
+   * 🔹 Unpair a Camera (DELETE `${API_BASE_URL}/unpair/:cameraID`)
    * ✅ Requires valid `cameraID`
    */
   const unpairCamera = async (cameraID: string) => {
     setLoading(true);
     setError("");
     try {
-      await axios.delete(`/api/cameras/unpair/${cameraID}`, { withCredentials: true });
+      await axios.delete(`${API_BASE_URL}/unpair/${cameraID}`, {
+        headers: getAuthHeaders(), // Attach JWT token
+      });
       await fetchCameras(); // Refresh list after unpairing
     } catch (error: any) {
       console.error("Error unpairing camera:", error);
