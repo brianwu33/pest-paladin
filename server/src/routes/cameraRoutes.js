@@ -1,6 +1,6 @@
 const express = require("express");
 const pool = require("../config/db");
-const authMiddleware = require("../middleware/authMiddleware");
+const authMiddleware = require("../middlewares/authMiddleware");
 
 const router = express.Router();
 
@@ -12,7 +12,11 @@ const router = express.Router();
 router.post("/pair", authMiddleware, async (req, res) => {
   try {
     const { cameraID, cameraName } = req.body;
-    const userID = req.auth.userId; // Extract userId from JWT
+    const userID = req.auth?.userId; // Extract userId from Clerk JWT
+
+    if (!userID) {
+      return res.status(401).json({ error: "Unauthorized: User ID not found in request" });
+    }
 
     if (!cameraID || !cameraName) {
       return res.status(400).json({ error: "CameraID and CameraName are required" });
@@ -35,7 +39,7 @@ router.post("/pair", authMiddleware, async (req, res) => {
 
     res.status(201).json({ message: "Camera paired successfully", camera: result.rows[0] });
   } catch (error) {
-    console.error("Error pairing camera:", error);
+    console.error("❌ Error pairing camera:", error);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
@@ -48,7 +52,11 @@ router.post("/pair", authMiddleware, async (req, res) => {
 router.delete("/unpair/:cameraID", authMiddleware, async (req, res) => {
   try {
     const { cameraID } = req.params;
-    const userID = req.auth.userId; // Extract userId from JWT
+    const userID = req.auth?.userId; // Extract userId from JWT
+
+    if (!userID) {
+      return res.status(401).json({ error: "Unauthorized: User ID not found in request" });
+    }
 
     // Ensure the user owns this camera before unpairing
     const camera = await pool.query("SELECT * FROM cameras WHERE camera_id = $1 AND user_id = $2", [cameraID, userID]);
@@ -62,7 +70,7 @@ router.delete("/unpair/:cameraID", authMiddleware, async (req, res) => {
 
     res.status(200).json({ message: "Camera unpaired successfully" });
   } catch (error) {
-    console.error("Error unpairing camera:", error);
+    console.error("❌ Error unpairing camera:", error);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
@@ -74,7 +82,13 @@ router.delete("/unpair/:cameraID", authMiddleware, async (req, res) => {
  */
 router.get("/", authMiddleware, async (req, res) => {
   try {
-    const userID = req.auth.userId; // Extract userId from JWT
+    const userID = req.auth?.userId; // Extract userId from JWT
+
+    if (!userID) {
+      return res.status(401).json({ error: "Unauthorized: User ID not found in request" });
+    }
+
+    console.log("🔹 Fetching cameras for User ID:", userID);
 
     const query = `
       SELECT camera_id, camera_name, paired_at
@@ -86,7 +100,7 @@ router.get("/", authMiddleware, async (req, res) => {
 
     res.status(200).json({ cameras: result.rows });
   } catch (error) {
-    console.error("Error fetching cameras:", error);
+    console.error("❌ Error fetching cameras:", error);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
