@@ -87,14 +87,14 @@ export default function Header() {
           </button>
 
           {/* Notification Button */}
-          <button
+          {/* <button
             type="button"
             className="p-1 rounded-full hover:bg-gray-100 relative"
             aria-label="Notifications"
           >
             <BellIcon className="h-8 w-8 text-gray-600" />
             <span className="absolute top-0 right-0 inline-block w-2 h-2 bg-red-600 rounded-full" />
-          </button>
+          </button> */}
 
           <UserButton appearance={{ elements: { avatarBox: "w-10 h-10" } }} />
         </SignedIn>
