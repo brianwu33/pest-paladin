@@ -4,17 +4,12 @@ import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { getAuthHeaders } from "@/hooks/useAuthHeaders";
 import axios from "axios";
 import Cookies from "js-cookie";
 
 // Load API Base URL from environment variables
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL + "/api/cameras";
-
-// Helper function to get JWT from cookies
-const getAuthHeaders = () => {
-  const token = Cookies.get("jwt_token");
-  return token ? { Authorization: `Bearer ${token}` } : {};
-};
 
 export function CameraPairingModal({ onClose }: { onClose: () => void }) {
   const [cameras, setCameras] = useState<{ camera_id: string; camera_name: string }[]>([]);
