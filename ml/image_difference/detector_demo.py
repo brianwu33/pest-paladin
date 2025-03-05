@@ -3,7 +3,6 @@ import cv2 as cv
 import time
 import json
 import torch
-import onnxruntime
 from PIL import Image
 import argparse
 import pathlib
@@ -16,8 +15,8 @@ pathlib.PosixPath = pathlib.WindowsPath
 # ------------------------
 # Parameterization via argparse
 # ------------------------
-parser = argparse.ArgumentParser(description="Image Difference with YOLO Object Detection - Manual Mode")
-parser.add_argument("--min_diff_size", type=int, default=1000, help="Minimum difference size (w*h)")
+parser = argparse.ArgumentParser(description="Image Difference with YOLO Object Detection")
+parser.add_argument("--min_diff_size", type=int, default=128, help="Minimum difference size (w*h)")
 parser.add_argument("--threshold_value", type=int, default=50, help="Fixed threshold value")
 parser.add_argument("--use_adaptive_threshold", action="store_true", help="Use adaptive thresholding")
 parser.add_argument("--adaptive_block_size", type=int, default=11, help="Adaptive thresholding block size (must be odd)")
@@ -33,6 +32,9 @@ parser.add_argument("--noise_filter_kernel", type=int, default=3, help="Kernel s
 # New argument to decide when to pass the whole image to YOLO
 parser.add_argument("--yolo_whole_thresh", type=float, default=0.5,
                     help="If the combined ROI area exceeds this fraction of the total image area, pass the whole image to YOLO")
+# New argument for live mode: target FPS. If set > 0, live mode is enabled.
+parser.add_argument("--live_fps", type=float, default=0,
+                    help="Target FPS for live mode. Set > 0 to enable live mode (can be less than 1).")
 args = parser.parse_args()
 
 # ------------------------
@@ -162,7 +164,6 @@ def run_yolo_on_region(frame, bbox):
         cv.rectangle(cropped_region, (int(x1), int(y1)), (int(x2), int(y2)), (255, 0, 0), 2)
         cv.putText(cropped_region, f"{name} ({conf:.2f})", (int(x1), int(y1)-10),
                    cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
-    
     # Optionally, you could display or further process cropped_region here.
     # cv.imshow("YOLO Detection", cropped_region)
 
@@ -187,15 +188,22 @@ if args.bg_method == "baseline":
         baseline_gray = cv.medianBlur(baseline_gray, args.noise_filter_kernel)
 else:
     if args.bg_method == "mog2":
-        bg_subtractor = cv.createBackgroundSubtractorMOG2(varThreshold=50, detectShadows=False)
+        bg_subtractor = cv.createBackgroundSubtractorMOG2(varThreshold=32, detectShadows=False, history=500)
     elif args.bg_method == "knn":
         bg_subtractor = cv.createBackgroundSubtractorKNN()
 
 diff_data = []
-print("Manual mode: Press any key to proceed to the next frame, or 'q' to exit.")
+
+# Determine mode and frame delay if live mode is enabled
+live_mode = args.live_fps > 0
+if live_mode:
+    delay_ms = int(1000.0 / args.live_fps)
+    print(f"Live mode enabled with target FPS: {args.live_fps} (delay: {delay_ms} ms per frame)")
+else:
+    print("Manual mode: Press any key to proceed to the next frame, or 'q' to exit.")
 
 # ------------------------
-# Main Processing Loop in Manual Mode
+# Main Processing Loop
 # ------------------------
 while True:
     frames = pipeline.wait_for_frames()
@@ -215,7 +223,6 @@ while True:
     # Convert to grayscale and reduce noise
     gray_frame = cv.cvtColor(frame_resized, cv.COLOR_BGR2GRAY)
     gray_blur = cv.GaussianBlur(gray_frame, tuple(args.blur_kernel), 0)
-    # Apply additional noise filtering if requested
     if args.apply_noise_filter:
         gray_blur = cv.medianBlur(gray_blur, args.noise_filter_kernel)
 
@@ -248,10 +255,7 @@ while True:
 
     # Create a color version of the threshold image to draw ROI boxes
     thresh_with_boxes = cv.cvtColor(thresh, cv.COLOR_GRAY2BGR)
-    
-    # Draw the ROI boxes (in resized coordinates) on the threshold image
     for box in merged_boxes:
-        # For visualization, convert the rectangular ROI to a square ROI
         square_box = make_square_bbox(box, gray_frame.shape)
         cv.rectangle(thresh_with_boxes, (square_box[0], square_box[1]),
                      (square_box[0] + square_box[2], square_box[1] + square_box[3]), (0, 255, 0), 2)
@@ -262,17 +266,13 @@ while True:
         union_area = union_bbox_all[2] * union_bbox_all[3]
         total_area = original_frame.shape[0] * original_frame.shape[1]
         if union_area > args.yolo_whole_thresh * total_area:
-            # Run YOLO on the whole image
             run_yolo_on_region(original_frame, (0, 0, original_frame.shape[1], original_frame.shape[0]))
         else:
-            # Process each merged bounding box
             for bbox in merged_boxes:
-                # Scale ROI back to original frame coordinates if resized
                 if args.resize_factor != 1.0:
                     scale = 1.0 / args.resize_factor
                     x, y, w, h = bbox
                     bbox = (int(x * scale), int(y * scale), int(w * scale), int(h * scale))
-                # Convert rectangular ROI to a square ROI for additional context
                 square_bbox = make_square_bbox(bbox, original_frame.shape)
                 cv.rectangle(original_frame, (square_bbox[0], square_bbox[1]),
                              (square_bbox[0] + square_bbox[2], square_bbox[1] + square_bbox[3]), (0, 255, 0), 2)
@@ -282,8 +282,8 @@ while True:
     cv.imshow('Background Subtraction', thresh_with_boxes)
     cv.imshow('Differences', original_frame)
     
-    # Wait indefinitely for a key press; press 'q' to quit.
-    key = cv.waitKey(0) & 0xFF
+    # Wait for key input or delay based on mode
+    key = cv.waitKey(delay_ms if live_mode else 0) & 0xFF
     if key == ord('q'):
         break
 
