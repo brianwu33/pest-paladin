@@ -6,7 +6,7 @@ import torch
 from PIL import Image
 import argparse
 import pathlib
-import pyrealsense2 as rs  # New import for RealSense
+import pyrealsense2 as rs  # Still needed for RealSense mode
 
 # For Windows compatibility if needed
 temp = pathlib.PosixPath
@@ -35,6 +35,9 @@ parser.add_argument("--yolo_whole_thresh", type=float, default=0.5,
 # New argument for live mode: target FPS. If set > 0, live mode is enabled.
 parser.add_argument("--live_fps", type=float, default=0,
                     help="Target FPS for live mode. Set > 0 to enable live mode (can be less than 1).")
+# New argument to choose the camera type: "realsense" or "webcam"
+parser.add_argument("--camera_type", type=str, choices=["realsense", "webcam"], default="realsense",
+                    help="Camera type to use: realsense or webcam")
 args = parser.parse_args()
 
 # ------------------------
@@ -42,16 +45,26 @@ args = parser.parse_args()
 # ------------------------
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 # model = torch.hub.load('ultralytics/yolov5', 'custom', path='weights/yolov5s_v2.pt').to(device)
-model = torch.hub.load('ultralytics/yolov5', 'custom', path='weights/yolov5x_v2.pt').to(device)
+# model = torch.hub.load('ultralytics/yolov5', 'custom', path='weights/yolov5x_v2.pt', force_reload=True).to(device)
+model = torch.hub.load('ultralytics/yolov5', 'custom', path='weights/yolov5x_v2_and_close_1.pt', force_reload=True).to(device)
 
 # ------------------------
-# Intel RealSense Capture Setup
+# Camera Capture Setup
 # ------------------------
-pipeline = rs.pipeline()
-config = rs.config()
-# Enable the color stream; adjust resolution and framerate as needed
-config.enable_stream(rs.stream.color, 1920, 1080, rs.format.bgr8, 30)
-pipeline.start(config)
+if args.camera_type == "realsense":
+    # Intel RealSense Capture Setup
+    pipeline = rs.pipeline()
+    config = rs.config()
+    # Enable the color stream; adjust resolution and framerate as needed
+    config.enable_stream(rs.stream.color, 1920, 1080, rs.format.bgr8, 30)
+    pipeline.start(config)
+else:
+    # Normal webcam using OpenCV VideoCapture
+    cap = cv.VideoCapture(0)
+    # Optionally set resolution (e.g., 1920x1080) and framerate here if needed:
+    cap.set(cv.CAP_PROP_FRAME_WIDTH, 1920)
+    cap.set(cv.CAP_PROP_FRAME_HEIGHT, 1080)
+    cap.set(cv.CAP_PROP_FPS, 30)
 
 # ------------------------
 # Utility Functions for Bounding Box Clustering and ROI Expansion
@@ -72,13 +85,13 @@ def boxes_overlap_or_close(boxA, boxB, threshold):
     leftB, rightB = xB, xB + wB
     topB, bottomB = yB, yB + hB
 
-    # 1) Check if they actually overlap in x and y
+    # Check if they overlap
     overlap_in_x = not (rightA < leftB or leftA > rightB)
     overlap_in_y = not (bottomA < topB or topA > bottomB)
     if overlap_in_x and overlap_in_y:
-        return True  # They do intersect/overlap
+        return True
 
-    # 2) If they do not overlap, optionally allow "close" merges if gap <= threshold
+    # Check for "close" boxes if gap <= threshold
     gap_x = 0
     if rightA < leftB:
         gap_x = leftB - rightA
@@ -132,13 +145,11 @@ def make_square_bbox(bbox, frame_shape):
     """
     x, y, w, h = bbox
     size = max(w, h)
-    # Center of the original bbox
     cx = x + w // 2
     cy = y + h // 2
     new_x = cx - size // 2
     new_y = cy - size // 2
 
-    # Clamp the bounding box to the frame dimensions.
     new_x = max(new_x, 0)
     new_y = max(new_y, 0)
     if new_x + size > frame_shape[1]:
@@ -164,20 +175,23 @@ def run_yolo_on_region(frame, bbox):
         cv.rectangle(cropped_region, (int(x1), int(y1)), (int(x2), int(y2)), (255, 0, 0), 2)
         cv.putText(cropped_region, f"{name} ({conf:.2f})", (int(x1), int(y1)-10),
                    cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
-    # Optionally, you could display or further process cropped_region here.
-    # cv.imshow("YOLO Detection", cropped_region)
 
 # ------------------------
 # Background Initialization
 # ------------------------
 if args.bg_method == "baseline":
-    # Capture one frame to initialize the baseline background
-    frames = pipeline.wait_for_frames()
-    color_frame = frames.get_color_frame()
-    if not color_frame:
-        print("Cannot capture from RealSense camera")
-        exit()
-    frame = np.asanyarray(color_frame.get_data())
+    if args.camera_type == "realsense":
+        frames = pipeline.wait_for_frames()
+        color_frame = frames.get_color_frame()
+        if not color_frame:
+            print("Cannot capture from RealSense camera")
+            exit()
+        frame = np.asanyarray(color_frame.get_data())
+    else:  # webcam
+        ret, frame = cap.read()
+        if not ret:
+            print("Cannot capture from webcam")
+            exit()
     if args.resize_factor != 1.0:
         frame_resized = cv.resize(frame, None, fx=args.resize_factor, fy=args.resize_factor)
     else:
@@ -206,12 +220,20 @@ else:
 # Main Processing Loop
 # ------------------------
 while True:
-    frames = pipeline.wait_for_frames()
-    color_frame = frames.get_color_frame()
-    if not color_frame:
-        print("Failed to acquire color frame. Exiting...")
-        break
-    frame = np.asanyarray(color_frame.get_data())
+    # Capture frame based on selected camera
+    if args.camera_type == "realsense":
+        frames = pipeline.wait_for_frames()
+        color_frame = frames.get_color_frame()
+        if not color_frame:
+            print("Failed to acquire color frame. Exiting...")
+            break
+        frame = np.asanyarray(color_frame.get_data())
+    else:  # webcam
+        ret, frame = cap.read()
+        if not ret:
+            print("Failed to grab frame from webcam. Exiting...")
+            break
+
     original_frame = frame.copy()
 
     # Resize frame for processing if requested
@@ -282,7 +304,6 @@ while True:
     cv.imshow('Background Subtraction', thresh_with_boxes)
     cv.imshow('Differences', original_frame)
     
-    # Wait for key input or delay based on mode
     key = cv.waitKey(delay_ms if live_mode else 0) & 0xFF
     if key == ord('q'):
         break
@@ -290,5 +311,10 @@ while True:
 with open("image_differences.json", "w") as json_file:
     json.dump(diff_data, json_file, indent=4)
 
-pipeline.stop()  # Stop the RealSense pipeline
+# Clean up: release camera resources
+if args.camera_type == "realsense":
+    pipeline.stop()
+else:
+    cap.release()
+
 cv.destroyAllWindows()
