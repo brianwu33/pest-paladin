@@ -2,20 +2,20 @@ const express = require("express");
 const pool = require("../config/db");
 const AWS = require("aws-sdk");
 const { v4: uuidv4 } = require("uuid");
-const { upload, getImageFromS3 } = require("../middlewares/upload");
+const { upload, generatePresignedUrl, getImageFromS3 } = require("../middlewares/upload");
 const authMiddleware = require("../middlewares/authMiddleware"); // Import auth middleware
 
 const router = express.Router();
-const s3 = new AWS.S3();
+// const s3 = new AWS.S3();
 
 // 🔹 Generate pre-signed URL for secure image access
-const generatePresignedUrl = (imageKey) => {
-  return s3.getSignedUrl("getObject", {
-    Bucket: process.env.AWS_BUCKET_NAME,
-    Key: imageKey,
-    Expires: 3600, // URL expires in 1 hour
-  });
-};
+// const generatePresignedUrl = (imageKey) => {
+//   return s3.getSignedUrl("getObject", {
+//     Bucket: process.env.AWS_BUCKET_NAME,
+//     Key: imageKey,
+//     Expires: 3600, // URL expires in 1 hour
+//   });
+// };
 
 /**
  * 🔹 Upload Detection Data (POST)
@@ -150,18 +150,23 @@ router.get("/:id", authMiddleware, async (req, res) => {
       return res.status(400).json({ error: "Invalid UUID format" });
     }
 
-    // Retrieve detection only if it belongs to the authenticated user
-    const result = await pool.query(
-      "SELECT * FROM detection_instance WHERE instance_id = $1 AND user_id = $2",
-      [id, userID]
-    );
+    // Retrieve detection details (excluding data already available in frontend)
+    const query = `
+      SELECT x_min, x_max, y_min, y_max, confidence, image_key
+      FROM detections
+      WHERE detection_id = $1 AND user_id = $2
+    `;
+    const result = await pool.query(query, [id, userID]);
 
     if (result.rows.length > 0) {
       const detection = result.rows[0];
-      detection.imageUrl = generatePresignedUrl(detection.image_key);
+
+      // Generate pre-signed URL for the image
+      detection.image_url = generatePresignedUrl(detection.image_key);
+
       res.status(200).json(detection);
     } else {
-      res.status(404).json({ error: "Detection instance not found" });
+      res.status(404).json({ error: "Detection not found or access denied" });
     }
   } catch (error) {
     console.error("❌ Error retrieving detection data:", error);
