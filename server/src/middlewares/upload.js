@@ -43,6 +43,15 @@ const upload = multer({
   limits: { fileSize: 5 * 1024 * 1024 }, // Limit file size to 5MB
 });
 
+const generatePresignedUrl = (imageKey) => {
+  console.log("Hi I'm here")
+  return s3.getSignedUrl("getObject", {
+    Bucket: process.env.AWS_BUCKET_NAME,
+    Key: imageKey,
+    Expires: 3600, // URL expires in 1 hour
+  });
+};
+
 const getImageFromS3 = async (req, res) => {
   const { imageKey } = req.params; // Get the image key from the URL
 
@@ -81,5 +90,6 @@ console.log("Multer-S3 Configured Successfully (AWS SDK v2)!");
 
 module.exports = {
   upload,
+  generatePresignedUrl,
   getImageFromS3
 };

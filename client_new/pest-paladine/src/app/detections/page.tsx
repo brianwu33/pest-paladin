@@ -3,13 +3,14 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { DataTable } from "./data-table";
-import { columns } from "./columns";
+import { useDetectionColumns } from "./columns";
 import { DataTablePagination } from "./pagination";
 import { getAuthHeaders } from "@/hooks/useAuthHeaders";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL + "/api/detections";
 
 export default function DetectionsPage() {
+  const columns = useDetectionColumns();
   const [detections, setDetections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
