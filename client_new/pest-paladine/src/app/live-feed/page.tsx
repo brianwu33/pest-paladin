@@ -83,6 +83,7 @@ export default function LiveStreamingPage() {
           }`}
         >
           {isLoading ? "Loading..." : "Online"}
+          
         </span>
       </div>
 
@@ -110,3 +111,4 @@ export default function LiveStreamingPage() {
     </div>
   );
 }
+
