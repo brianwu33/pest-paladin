@@ -5,7 +5,6 @@ import Header from "./components/Header";
 import AppSidebar from "./components/Sidebar";
 import { AuthRedirect } from "./components/AuthRedirect";
 import { SidebarProvider } from "@/components/ui/sidebar";
-import AuthHandler from "./components/AuthHandler"; // ✅ Ensures JWT Handling
 
 export const metadata: Metadata = {
   title: "Pest Paladine",
@@ -19,11 +18,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <body className="flex h-screen">
           {/* Redirect Logic */}
           <AuthRedirect />
-
-          {/* ✅ Ensures JWT Handling is client-side */}
-          <SignedIn>
-            <AuthHandler />
-          </SignedIn>
 
           <SidebarProvider>
             <div className="flex w-full">
