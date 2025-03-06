@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Loader, PauseCircle, RefreshCw, VolumeX } from "lucide-react";
 
 const cameras = [
-  { id: "1", name: "Default", streamUrl: "ws://localhost:8765" },
+  { id: "1", name: "Garden", streamUrl: "ws://localhost:8765" },
 ];
 
 export default function LiveStreamingPage() {

@@ -1,21 +1,10 @@
 const express = require("express");
 const pool = require("../config/db");
-const AWS = require("aws-sdk");
 const { v4: uuidv4 } = require("uuid");
 const { upload, generatePresignedUrl, getImageFromS3 } = require("../middlewares/upload");
 const authMiddleware = require("../middlewares/authMiddleware"); // Import auth middleware
 
 const router = express.Router();
-// const s3 = new AWS.S3();
-
-// 🔹 Generate pre-signed URL for secure image access
-// const generatePresignedUrl = (imageKey) => {
-//   return s3.getSignedUrl("getObject", {
-//     Bucket: process.env.AWS_BUCKET_NAME,
-//     Key: imageKey,
-//     Expires: 3600, // URL expires in 1 hour
-//   });
-// };
 
 /**
  * 🔹 Upload Detection Data (POST)

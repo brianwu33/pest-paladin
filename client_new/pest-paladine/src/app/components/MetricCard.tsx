@@ -1,22 +1,29 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DivideIcon as LucideIcon } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
 
-interface MetricCardProps {
+interface CardMetricProps {
+  icon: typeof LucideIcon;
   title: string;
-  value: string | number;
-  description?: string;
-  icon?: React.ReactNode;
+  value: string;
 }
 
-export function MetricCard({ title, value, description, icon }: MetricCardProps) {
+export function MetricCard({ icon: Icon, title, value }: CardMetricProps) {
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        {icon}
-      </CardHeader>
-      <CardContent>
-        <div className="text-2xl font-bold">{value}</div>
-        {description && <p className="text-xs text-muted-foreground">{description}</p>}
+      <CardContent className="flex items-center gap-4 pt-6">
+        <div className="rounded-full bg-green-100 p-3">
+          <Icon className="h-6 w-6 text-green-600" />
+        </div>
+        <div>
+          <p className="text-sm text-muted-foreground">{title}</p>
+          <p
+            className={`font-bold ${
+              title === "Timestamp" ? "text-lg" : "text-xl"
+            }`}
+          >
+            {value}
+          </p>
+        </div>
       </CardContent>
     </Card>
   );
