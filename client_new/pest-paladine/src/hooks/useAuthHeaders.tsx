@@ -1,3 +1,4 @@
+// Deprecated
 "use client"; // ✅ Ensure it's a client-side hook
 
 import Cookies from "js-cookie";

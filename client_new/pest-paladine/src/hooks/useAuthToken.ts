@@ -1,3 +1,5 @@
+// Deprecated
+
 "use client"; // ✅ Ensure it's a client-side hook
 
 import { useAuth } from "@clerk/nextjs";

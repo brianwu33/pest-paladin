@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import axios from "axios";
+import { useAuth } from "@clerk/nextjs";
 import { MetricCard } from "../components/MetricCard";
 import { VisualCard } from "../components/VisualCard";
-import { getAuthHeaders } from "@/hooks/useAuthHeaders";
 import { Clock, MousePointer, Rat, Timer } from "lucide-react";
 import {
   AreaChart,
@@ -21,6 +21,7 @@ import {
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL + "/api/dashboard";
 
 export default function Home() {
+  const { getToken } = useAuth(); // ✅ Get token from Clerk
   const [dashboardData, setDashboardData] = useState({
     totalDetections: 0,
     mostFrequentSpecies: "N/A",
@@ -41,8 +42,12 @@ export default function Home() {
     setError("");
 
     try {
+      const token = await getToken(); // ✅ Get auth token
+
       const response = await axios.get(API_BASE_URL, {
-        headers: getAuthHeaders(),
+        headers: {
+          Authorization: `Bearer ${token}`, // ✅ Use token in headers
+        },
       });
 
       setDashboardData({

@@ -3,9 +3,9 @@
 import { ColumnDef } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@clerk/nextjs";
 import axios from "axios";
 import { toast } from "react-hot-toast";
-import { getAuthHeaders } from "@/hooks/useAuthHeaders";
 
 export type Detection = {
   detection_id: string;
@@ -16,6 +16,7 @@ export type Detection = {
 
 export function useDetectionColumns() {
   const router = useRouter();
+  const { getToken } = useAuth(); // ✅ Get token from Clerk
 
   const handleView = (detection: Detection) => {
     console.log("Viewing detection:", detection); // Debugging log
@@ -35,10 +36,17 @@ export function useDetectionColumns() {
     if (!confirmDelete) return;
 
     try {
+      const token = await getToken(); // ✅ Get auth token
+
       await axios.delete(
         `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/detections/${detection.detection_id}`,
-        { headers: getAuthHeaders() }
+        {
+          headers: {
+            Authorization: `Bearer ${token}`, // ✅ Use token in headers
+          },
+        }
       );
+
       toast.success("Detection deleted successfully");
       window.location.reload();
     } catch (error) {

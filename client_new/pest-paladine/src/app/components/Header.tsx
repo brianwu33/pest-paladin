@@ -1,16 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  SignInButton,
-  SignUpButton,
-  SignedIn,
-  SignedOut,
-  UserButton,
-  useUser,
-} from "@clerk/nextjs";
-import { BellIcon, CameraIcon } from "@heroicons/react/24/outline";
-import Link from "next/link";
+import { SignedIn, UserButton, useUser } from "@clerk/nextjs";
+import { CameraIcon } from "@heroicons/react/24/outline";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { CameraPairingModal } from "./CameraPairingModal";
 
@@ -46,62 +38,42 @@ export default function Header() {
   // State to toggle the camera pairing modal
   const [showCameraModal, setShowCameraModal] = useState(false);
 
+  if (!isSignedIn) return null; // ✅ Ensures Header only shows for signed-in users
+
   return (
     <header className="flex justify-between items-center p-4 h-24 bg-white shadow-sm">
       {/* Left Side: Sidebar Trigger + Welcome Message */}
       <div className="flex items-center gap-4">
-        <SignedIn>
-          <SidebarTrigger className="p-2 rounded-md hover:bg-gray-200 transition w-12 h-12 flex items-center justify-center">
-            <svg className="w-10 h-10 text-gray-700" />
-          </SidebarTrigger>
+        <SidebarTrigger className="p-2 rounded-md hover:bg-gray-200 transition w-12 h-12 flex items-center justify-center">
+          <svg className="w-10 h-10 text-gray-700" />
+        </SidebarTrigger>
 
-          <div>
-            <p className="font-semibold">Welcome Back!</p>
-            <p className="text-sm text-gray-600">{currentDateTime}</p>
-          </div>
-        </SignedIn>
-
-        <SignedOut>
-          <Link href="/" className="font-bold text-lg">
-            Pest Paladine
-          </Link>
-        </SignedOut>
+        <div>
+          <p className="font-semibold">Welcome Back!</p>
+          <p className="text-sm text-gray-600">{currentDateTime}</p>
+        </div>
       </div>
 
-      {/* Right Side: Notification Button + Profile + Camera Pairing */}
+      {/* Right Side: Camera Pairing + Profile Button */}
       <div className="flex items-center gap-4">
-        <SignedOut>
-          <SignInButton />
-          <SignUpButton />
-        </SignedOut>
+        {/* Camera Pairing Button */}
+        <button
+          type="button"
+          className="p-2 rounded-full hover:bg-gray-100 transition"
+          onClick={() => setShowCameraModal(true)}
+          aria-label="Manage Cameras"
+        >
+          <CameraIcon className="h-8 w-8 text-gray-600" />
+        </button>
 
-        <SignedIn>
-          {/* Camera Pairing Button */}
-          <button
-            type="button"
-            className="p-2 rounded-full hover:bg-gray-100 transition"
-            onClick={() => setShowCameraModal(true)}
-            aria-label="Manage Cameras"
-          >
-            <CameraIcon className="h-8 w-8 text-gray-600" />
-          </button>
-
-          {/* Notification Button */}
-          {/* <button
-            type="button"
-            className="p-1 rounded-full hover:bg-gray-100 relative"
-            aria-label="Notifications"
-          >
-            <BellIcon className="h-8 w-8 text-gray-600" />
-            <span className="absolute top-0 right-0 inline-block w-2 h-2 bg-red-600 rounded-full" />
-          </button> */}
-
-          <UserButton appearance={{ elements: { avatarBox: "w-10 h-10" } }} />
-        </SignedIn>
+        {/* User Profile Button */}
+        <UserButton appearance={{ elements: { avatarBox: "w-10 h-10" } }} />
       </div>
 
       {/* Camera Pairing Modal */}
-      {showCameraModal && <CameraPairingModal onClose={() => setShowCameraModal(false)} />}
+      {showCameraModal && (
+        <CameraPairingModal onClose={() => setShowCameraModal(false)} />
+      )}
     </header>
   );
 }

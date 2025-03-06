@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import axios from "axios";
-import { getAuthHeaders } from "@/hooks/useAuthHeaders";
+import { useAuth } from "@clerk/nextjs";
 import { MetricCard } from "../../components/MetricCard";
 import { VisualCard } from "../../components/VisualCard";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,7 @@ export default function DetectionDetailPage() {
   const timestamp = searchParams.get("timestamp");
   const species = searchParams.get("species");
   const cameraName = searchParams.get("camera_name");
+  const { getToken } = useAuth(); // ✅ Get token from Clerk
 
   const [detection, setDetection] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -37,9 +38,14 @@ export default function DetectionDetailPage() {
 
     const fetchDetectionDetail = async () => {
       try {
+        const token = await getToken(); // ✅ Get auth token
         const response = await axios.get(
           `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/detections/${detectionId}`,
-          { headers: getAuthHeaders() }
+          {
+            headers: {
+              Authorization: `Bearer ${token}`, // ✅ Use token in headers
+            },
+          }
         );
         setDetection(response.data);
       } catch (error) {
