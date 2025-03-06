@@ -10,6 +10,7 @@ const authMiddleware = require("./middlewares/authMiddleware.js"); // Import aut
 const detectionRoutes = require("./routes/detectionRoutes.js");
 const analyticRoutes = require("./routes/analyticRoutes.js");
 const cameraRoutes = require("./routes/cameraRoutes.js"); // ✅ Add Camera Routes
+const dashboardRoutes = require("./routes/dashboardRoutes.js");
 
 const app = express();
 
@@ -48,6 +49,7 @@ app.get("/hi", (req, res) => {
 app.use("/api/detections", authMiddleware, detectionRoutes);
 app.use("/api/analytics", authMiddleware, analyticRoutes);
 app.use("/api/cameras", authMiddleware, cameraRoutes); // ✅ Add Cameras Route (Protected)
+app.use("/api/dashboard", authMiddleware, dashboardRoutes); // ✅ Add Cameras Route (Protected)
 
 // Start Server
 const PORT = process.env.PORT || 3001;

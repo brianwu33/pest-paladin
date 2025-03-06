@@ -1,7 +1,10 @@
 "use client";
 
-import { CardMetric } from "./components/ui/card-metric";
-import { CardChart } from "./components/ui/card-chart";
+import { useEffect, useState } from "react";
+import axios from "axios";
+import { MetricCard } from "../components/MetricCard";
+import { VisualCard } from "../components/VisualCard";
+import { getAuthHeaders } from "@/hooks/useAuthHeaders";
 import { Clock, MousePointer, Rat, Timer } from "lucide-react";
 import {
   AreaChart,
@@ -15,141 +18,186 @@ import {
   Cell,
 } from "recharts";
 
-const dailyData = [
-  { date: "2.12", count: 1 },
-  { date: "2.13", count: 2 },
-  { date: "2.14", count: 2 },
-  { date: "2.15", count: 4 },
-  { date: "2.16", count: 2 },
-  { date: "2.17", count: 3 },
-  { date: "2.18", count: 4 },
-];
-
-const peakActivityData = [
-  { time: "8AM", count: 1 },
-  { time: "12PM", count: 0 },
-  { time: "4PM", count: 2 },
-  { time: "8PM", count: 0 },
-  { time: "12AM", count: 0 },
-  { time: "4AM", count: 0 },
-];
-
-const pestTypeData = [
-  { name: "Pest 1", value: 35, color: "#4ade80" },
-  { name: "Pest 2", value: 31, color: "#86efac" },
-  { name: "Pest 3", value: 23, color: "#6ee7b7" },
-  { name: "Pest 4", value: 15, color: "#a5f3fc" },
-  { name: "Pest 5", value: 7, color: "#bef264" },
-];
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL + "/api/dashboard";
 
 export default function Home() {
+  const [dashboardData, setDashboardData] = useState({
+    totalDetections: 0,
+    mostFrequentSpecies: "N/A",
+    mostDetectionCamera: "N/A",
+    latestDetection: "N/A",
+    peakActivityData: [],
+    pestTypeData: [],
+    dailyDetectionTrend: [],
+    cameraData: [],
+  });
+
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  // Fetch dashboard analytics data
+  const fetchDashboardData = async () => {
+    setLoading(true);
+    setError("");
+
+    try {
+      const response = await axios.get(API_BASE_URL, {
+        headers: getAuthHeaders(),
+      });
+
+      setDashboardData({
+        totalDetections: response.data.totalDetections,
+        mostFrequentSpecies: response.data.mostFrequentSpecies,
+        mostDetectionCamera: response.data.mostDetectionCamera,
+        latestDetection: response.data.latestDetection
+          ? formatTimeAgo(response.data.latestDetection)
+          : "N/A",
+        peakActivityData: response.data.peakActivityData || [],
+        pestTypeData: response.data.pestTypeData || [],
+        dailyDetectionTrend: response.data.dailyDetectionTrend || [],
+        cameraData: response.data.cameraData || [],
+      });
+    } catch (err) {
+      console.error("Error fetching dashboard data:", err);
+      setError("Failed to load dashboard data.");
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  // Function to format timestamps as "X min ago", "X hr ago", or "X days ago"
+  const formatTimeAgo = (timestamp: string) => {
+    console.log("Timestamp: " + timestamp);
+    if (!timestamp) return "N/A";
+
+    const now = new Date();
+    const detectionTime = new Date(timestamp);
+
+    if (isNaN(detectionTime.getTime())) return "N/A";
+
+    const diffInSeconds = Math.max(0, Math.floor((now.getTime() - detectionTime.getTime()) / 1000));
+    const diffInMinutes = Math.floor(diffInSeconds / 60);
+    const diffInHours = Math.floor(diffInSeconds / 3600);
+    const diffInDays = Math.floor(diffInSeconds / 86400);
+
+    if (diffInMinutes < 1) return "Just now";
+    if (diffInMinutes < 60) return `${diffInMinutes} min ago`;
+    if (diffInHours < 24) return `${diffInHours} hr ago`;
+
+    return `${diffInDays} days ago`;
+  };
+
   return (
     <div className="min-h-screen bg-background p-8">
       <div className="mx-auto max-w-7xl">
-        <h1 className="mb-8 scroll-m-20 text-4xl font-bold tracking-tight">
+        <h1 className="mb-8 scroll-m-20 text-xl font-bold tracking-tight">
           Today's Data
         </h1>
-        
+
+        {error && <p className="text-red-500">{error}</p>}
+
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          <CardMetric
+          <MetricCard
             icon={MousePointer}
             title="Total Detection"
-            value="2"
+            value={loading ? "Loading..." : dashboardData.totalDetections.toString()}
           />
-          <CardMetric
+          <MetricCard
             icon={Timer}
-            title="Average Pest Duration"
-            value="3 min 16 sec"
+            title="Most Detections Camera"
+            value={loading ? "Loading..." : dashboardData.mostDetectionCamera}
           />
-          <CardMetric
+          <MetricCard
             icon={Rat}
             title="Most Frequent Species"
-            value="Rat"
+            value={loading ? "Loading..." : dashboardData.mostFrequentSpecies}
           />
-          <CardMetric
+          <MetricCard
             icon={Clock}
             title="Latest Detection"
-            value="7 min ago"
+            value={loading ? "Loading..." : dashboardData.latestDetection}
           />
         </div>
 
-        <h2 className="mb-6 mt-12 scroll-m-20 text-3xl font-semibold tracking-tight">
+        <h2 className="mb-8 mt-12 scroll-m-20 text-xl font-bold tracking-tight">
           Past 7 Days Analysis
         </h2>
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <CardChart
+          <VisualCard
             title="Peak Activity Times"
             description="The most active time periods in the week"
           >
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={peakActivityData}>
+              <AreaChart data={dashboardData.peakActivityData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="time" />
                 <YAxis />
-                <Area
-                  type="monotone"
-                  dataKey="count"
-                  stroke="#4ade80"
-                  fill="#86efac"
-                />
+                <Area type="monotone" dataKey="count" stroke="#4ade80" fill="#86efac" />
               </AreaChart>
             </ResponsiveContainer>
-          </CardChart>
+          </VisualCard>
 
-          <CardChart
+          <VisualCard
             title="Pest Type Distribution"
-            description="Most Common Pests seen in your garden"
+            description="Top 5 Most Common Pests"
           >
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
-                  data={pestTypeData}
+                  data={dashboardData.pestTypeData}
                   cx="50%"
                   cy="50%"
                   outerRadius={100}
                   dataKey="value"
                   label={({ name, value }) => `${name} - ${value}%`}
                 >
-                  {pestTypeData.map((entry, index) => (
-                    <Cell key={index} fill={entry.color} />
+                  {dashboardData.pestTypeData.map((entry, index) => (
+                    <Cell key={index} fill={["#4ade80", "#86efac", "#6ee7b7", "#a5f3fc", "#bef264"][index % 5]} />
                   ))}
                 </Pie>
               </PieChart>
             </ResponsiveContainer>
-          </CardChart>
+          </VisualCard>
 
-          <CardChart
+          <VisualCard
             title="Daily Detection Trend"
             description="Detection count per day in the past 7 days"
           >
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={dailyData}>
+              <AreaChart data={dashboardData.dailyDetectionTrend}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="date" />
                 <YAxis />
-                <Area
-                  type="monotone"
-                  dataKey="count"
-                  stroke="#4ade80"
-                  fill="#86efac"
-                />
+                <Area type="monotone" dataKey="count" stroke="#4ade80" fill="#86efac" />
               </AreaChart>
             </ResponsiveContainer>
-          </CardChart>
+          </VisualCard>
 
-          <CardChart
-            title="Location Distribution"
-            description="The most detected areas"
+          <VisualCard
+            title="Camera Distribution"
+            description="Top 5 Most Detection Cameras"
           >
-            <div className="flex h-full items-center justify-center">
-              <img
-                src="https://images.unsplash.com/photo-1577979749830-f1d742b96791?auto=format&fit=crop&q=80&w=1000"
-                alt="Garden Map"
-                className="h-full w-full rounded-lg object-cover"
-              />
-            </div>
-          </CardChart>
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={dashboardData.cameraData}
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={100}
+                  dataKey="value"
+                  label={({ name, value }) => `${name} - ${value}%`}
+                >
+                  {dashboardData.cameraData.map((entry, index) => (
+                    <Cell key={index} fill={["#4ade80", "#86efac", "#6ee7b7", "#a5f3fc", "#bef264"][index % 5]} />
+                  ))}
+                </Pie>
+              </PieChart>
+            </ResponsiveContainer>
+          </VisualCard>
         </div>
       </div>
     </div>
