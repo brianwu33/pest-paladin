@@ -2,15 +2,16 @@
 
 import { useState, useEffect } from "react";
 import axios from "axios";
+import { useAuth } from "@clerk/nextjs";
 import { DataTable } from "./data-table";
 import { useDetectionColumns } from "./columns";
 import { DataTablePagination } from "./pagination";
-import { getAuthHeaders } from "@/hooks/useAuthHeaders";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL + "/api/detections";
 
 export default function DetectionsPage() {
   const columns = useDetectionColumns();
+  const { getToken } = useAuth(); // ✅ Get token from Clerk
   const [detections, setDetections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -22,11 +23,16 @@ export default function DetectionsPage() {
   const fetchDetections = async (page = 1) => {
     setLoading(true);
     setError("");
+
     try {
+      const token = await getToken(); // ✅ Get auth token
+
       const response = await axios.get(
         `${API_BASE_URL}?page=${page}&limit=${pageSize}`,
         {
-          headers: getAuthHeaders(),
+          headers: {
+            Authorization: `Bearer ${token}`, // ✅ Use token in headers
+          },
         }
       );
 

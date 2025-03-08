@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
-import { ClerkProvider, SignedIn, SignedOut } from "@clerk/nextjs";
+import { ClerkProvider, SignedIn } from "@clerk/nextjs";
 import "./globals.css";
 import Header from "./components/Header";
 import AppSidebar from "./components/Sidebar";
 import { AuthRedirect } from "./components/AuthRedirect";
 import { SidebarProvider } from "@/components/ui/sidebar";
-import AuthHandler from "./components/AuthHandler"; // ✅ Import AuthHandler
 
 export const metadata: Metadata = {
   title: "Pest Paladine",
@@ -20,11 +19,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           {/* Redirect Logic */}
           <AuthRedirect />
 
-          {/* ✅ Ensures JWT Handling is client-side */}
-          <SignedIn>
-            <AuthHandler />
-          </SignedIn>
-
           <SidebarProvider>
             <div className="flex w-full">
               {/* Sidebar (Only for Signed In Users) */}
@@ -34,8 +28,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
               {/* Main Content */}
               <div className="flex-1 flex flex-col">
-                {/* Header should always be visible */}
-                <Header />
+                {/* Header (Only for Signed In Users) */}
+                <SignedIn>
+                  <Header />
+                </SignedIn>
 
                 {/* Page Content */}
                 <main className="flex-1 p-4">{children}</main>
