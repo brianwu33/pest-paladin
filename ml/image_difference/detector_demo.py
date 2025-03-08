@@ -3,6 +3,7 @@ import cv2 as cv
 import time
 import json
 import torch
+import onnxruntime
 from PIL import Image
 import argparse
 import pathlib
@@ -40,7 +41,7 @@ parser.add_argument("--yolo_whole_thresh", type=float, default=0.5,
 parser.add_argument("--live_fps", type=float, default=0,
                     help="Target FPS for live mode. Set > 0 to enable live mode (can be less than 1).")
 # New argument to choose the camera type: "realsense" or "webcam"
-parser.add_argument("--camera_type", type=str, choices=["realsense", "webcam"], default="realsense",
+parser.add_argument("--camera_type", type=str, choices=["realsense", "webcam", "realsense_ir"], default="realsense",
                     help="Camera type to use: realsense or webcam")
 args = parser.parse_args()
 
@@ -52,17 +53,27 @@ output_width, output_height = map(int, args.output_dims.split('x'))
 # ------------------------
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 model = torch.hub.load('ultralytics/yolov5', 'custom', path=args.weights, force_reload=True).to(device)
+model.conf = 0.1  # Set confidence threshold for YOLO detections
 
 # ------------------------
 # Camera Capture Setup
 # ------------------------
 if args.camera_type == "realsense":
-    # Intel RealSense Capture Setup
     pipeline = rs.pipeline()
     config = rs.config()
-    # Enable the color stream; adjust resolution and framerate as needed
     config.enable_stream(rs.stream.color, 1920, 1080, rs.format.bgr8, 30)
     pipeline.start(config)
+elif args.camera_type == "realsense_ir":
+    pipeline = rs.pipeline()
+    config = rs.config()
+    config.enable_stream(rs.stream.infrared, 1, 1280, 720, rs.format.y8, 30)
+    selection = pipeline.start(config)
+    for s in selection.get_device().query_sensors():
+        if s.is_depth_sensor():
+            s.set_option(rs.option.emitter_enabled, 0)
+            # s.set_option(rs.option.emitter_on_off, 1)
+            # laser_range = s.get_option_range(rs.option.laser_power)
+            # s.set_option(rs.option.laser_power, laser_range.max)
 else:
     # Normal webcam using OpenCV VideoCapture
     cap = cv.VideoCapture(0)
@@ -170,22 +181,46 @@ def run_yolo_on_region(frame, bbox):
         return 0.0
     x, y, w, h = bbox
     cropped_region = frame[y:y+h, x:x+w]
-    image = Image.fromarray(cv.cvtColor(cropped_region, cv.COLOR_BGR2RGB))
-    
+
+    # Check if using ONNX weights based on the filename extension
+    if args.weights.endswith('.onnx'):
+        # Define the input size expected by the ONNX model (adjust if necessary)
+        input_size = (640, 640)
+        orig_h, orig_w = cropped_region.shape[:2]
+        # Resize the region to the fixed input size
+        resized_region = cv.resize(cropped_region, input_size)
+        image = Image.fromarray(cv.cvtColor(resized_region, cv.COLOR_BGR2RGB))
+    else:
+        image = Image.fromarray(cv.cvtColor(cropped_region, cv.COLOR_BGR2RGB))
+
     start_yolo = time.time()
     results = model(image)
     yolo_runtime = time.time() - start_yolo
     print("YOLO call runtime: {:.2f} ms".format(yolo_runtime * 1000))
-    
+
     print("YOLO Object Detection Results:")
-    print(results.pandas().xyxy[0])
-    
-    for _, row in results.pandas().xyxy[0].iterrows():
+    detections = results.pandas().xyxy[0]
+
+    # If using ONNX weights, scale the bounding boxes back to the original cropped region size
+    if args.weights.endswith('.onnx'):
+        # Calculate scale factors to revert the resized coordinates
+        scale_x = cropped_region.shape[1] / input_size[0]
+        scale_y = cropped_region.shape[0] / input_size[1]
+        # Scale each coordinate in the detection dataframe
+        for col in ['xmin', 'xmax']:
+            detections[col] = detections[col] * scale_x
+        for col in ['ymin', 'ymax']:
+            detections[col] = detections[col] * scale_y
+
+    print(detections)
+
+    for _, row in detections.iterrows():
         x1, y1, x2, y2, conf, cls, name = row[['xmin', 'ymin', 'xmax', 'ymax', 'confidence', 'class', 'name']]
         cv.rectangle(cropped_region, (int(x1), int(y1)), (int(x2), int(y2)), (255, 0, 0), 2)
         cv.putText(cropped_region, f"{name} ({conf:.2f})", (int(x1), int(y1)-10),
                    cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
     return yolo_runtime
+
 
 # ------------------------
 # Background Initialization
@@ -193,11 +228,12 @@ def run_yolo_on_region(frame, bbox):
 if args.bg_method == "baseline":
     if args.camera_type == "realsense":
         frames = pipeline.wait_for_frames()
-        color_frame = frames.get_color_frame()
+        color_frame = frames.get_infrared_frame()
         if not color_frame:
             print("Cannot capture from RealSense camera")
             exit()
         frame = np.asanyarray(color_frame.get_data())
+        frame = cv.cvtColor(frame, cv.COLOR_GRAY2BGR)
     else:  # webcam
         ret, frame = cap.read()
         if not ret:
@@ -241,6 +277,14 @@ while True:
             print("Failed to acquire color frame. Exiting...")
             break
         frame = np.asanyarray(color_frame.get_data())
+    elif args.camera_type == "realsense_ir":
+        frames = pipeline.wait_for_frames()
+        ir_frame = frames.get_infrared_frame()
+        if not ir_frame:
+            print("Failed to acquire IR frame. Exiting...")
+            break
+        frame = np.asanyarray(ir_frame.get_data())
+        frame = cv.cvtColor(frame, cv.COLOR_GRAY2BGR)
     else:  # webcam
         ret, frame = cap.read()
         if not ret:
@@ -340,7 +384,7 @@ with open("image_differences.json", "w") as json_file:
     json.dump(diff_data, json_file, indent=4)
 
 # Clean up: release camera resources
-if args.camera_type == "realsense":
+if args.camera_type == "realsense" or args.camera_type == "realsense_ir":
     pipeline.stop()
 else:
     cap.release()
