@@ -15,6 +15,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <ClerkProvider>
       <html lang="en">
+        <head>
+          <link rel="icon" href="/logo.svg" />
+        </head>
         <body className="flex h-screen">
           {/* Redirect Logic */}
           <AuthRedirect />
@@ -23,14 +26,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <div className="flex w-full">
               {/* Sidebar (Only for Signed In Users) */}
               <SignedIn>
-                <AppSidebar />
+                <AppSidebar aria-label="Sidebar Navigation" />
               </SignedIn>
 
               {/* Main Content */}
               <div className="flex-1 flex flex-col">
                 {/* Header (Only for Signed In Users) */}
                 <SignedIn>
-                  <Header />
+                  <Header aria-label="Header Navigation" />
                 </SignedIn>
 
                 {/* Page Content */}
