@@ -19,8 +19,8 @@ pathlib.PosixPath = pathlib.WindowsPath
 parser = argparse.ArgumentParser(description="Image Difference with YOLO Object Detection")
 parser.add_argument("--weights", type=str, default="weights/yolov5x_v2_and_close_1.pt",
                     help="Path to the YOLO weights file")
-parser.add_argument("--output_dims", type=str, default="1920x1080",
-                    help="Output dimensions for display in the format WIDTHxHEIGHT")
+parser.add_argument("--output_dims", type=str, default="1720x960",
+                    help="Output dimensions for each pane in the format WIDTHxHEIGHT")
 parser.add_argument("--min_diff_size", type=int, default=128, help="Minimum difference size (w*h)")
 parser.add_argument("--threshold_value", type=int, default=50, help="Fixed threshold value")
 parser.add_argument("--use_adaptive_threshold", action="store_true", help="Use adaptive thresholding")
@@ -43,10 +43,18 @@ parser.add_argument("--live_fps", type=float, default=0,
 # New argument to choose the camera type: "realsense" or "webcam"
 parser.add_argument("--camera_type", type=str, choices=["realsense", "webcam", "realsense_ir"], default="realsense",
                     help="Camera type to use: realsense or webcam")
+# New flag: if set, only display the object detection output pane
+parser.add_argument("--display_obj_only", action="store_true",
+                    help="Display only the object detection output pane instead of the four-pane view")
 args = parser.parse_args()
 
-# Parse output dimensions argument (e.g., "1920x1080")
-output_width, output_height = map(int, args.output_dims.split('x'))
+# Parse output dimensions argument (for each pane, e.g., "640x360")
+if args.display_obj_only:
+    output_width, output_height = map(int, args.output_dims.split('x'))
+else:
+    output_width, output_height = map(int, args.output_dims.split('x'))
+    output_width //= 2
+    output_height //= 2
 
 # ------------------------
 # YOLO Model Initialization
@@ -71,13 +79,9 @@ elif args.camera_type == "realsense_ir":
     for s in selection.get_device().query_sensors():
         if s.is_depth_sensor():
             s.set_option(rs.option.emitter_enabled, 0)
-            # s.set_option(rs.option.emitter_on_off, 1)
-            # laser_range = s.get_option_range(rs.option.laser_power)
-            # s.set_option(rs.option.laser_power, laser_range.max)
 else:
     # Normal webcam using OpenCV VideoCapture
     cap = cv.VideoCapture(0)
-    # Set input resolution to 1920x1080 and desired framerate
     cap.set(cv.CAP_PROP_FRAME_WIDTH, 1920)
     cap.set(cv.CAP_PROP_FRAME_HEIGHT, 1080)
     cap.set(cv.CAP_PROP_FPS, 30)
@@ -184,10 +188,7 @@ def run_yolo_on_region(frame, bbox):
 
     # Check if using ONNX weights based on the filename extension
     if args.weights.endswith('.onnx'):
-        # Define the input size expected by the ONNX model (adjust if necessary)
         input_size = (640, 640)
-        orig_h, orig_w = cropped_region.shape[:2]
-        # Resize the region to the fixed input size
         resized_region = cv.resize(cropped_region, input_size)
         image = Image.fromarray(cv.cvtColor(resized_region, cv.COLOR_BGR2RGB))
     else:
@@ -198,21 +199,15 @@ def run_yolo_on_region(frame, bbox):
     yolo_runtime = time.time() - start_yolo
     print("YOLO call runtime: {:.2f} ms".format(yolo_runtime * 1000))
 
-    print("YOLO Object Detection Results:")
     detections = results.pandas().xyxy[0]
 
-    # If using ONNX weights, scale the bounding boxes back to the original cropped region size
     if args.weights.endswith('.onnx'):
-        # Calculate scale factors to revert the resized coordinates
         scale_x = cropped_region.shape[1] / input_size[0]
         scale_y = cropped_region.shape[0] / input_size[1]
-        # Scale each coordinate in the detection dataframe
         for col in ['xmin', 'xmax']:
             detections[col] = detections[col] * scale_x
         for col in ['ymin', 'ymax']:
             detections[col] = detections[col] * scale_y
-
-    print(detections)
 
     for _, row in detections.iterrows():
         x1, y1, x2, y2, conf, cls, name = row[['xmin', 'ymin', 'xmax', 'ymax', 'confidence', 'class', 'name']]
@@ -220,7 +215,6 @@ def run_yolo_on_region(frame, bbox):
         cv.putText(cropped_region, f"{name} ({conf:.2f})", (int(x1), int(y1)-10),
                    cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
     return yolo_runtime
-
 
 # ------------------------
 # Background Initialization
@@ -267,7 +261,7 @@ else:
 # Main Processing Loop
 # ------------------------
 while True:
-    total_yolo_runtime = 0.0  # Accumulate YOLO call runtimes per loop iteration
+    total_yolo_runtime = 0.0  # Accumulate YOLO runtimes per loop iteration
 
     # Capture frame based on selected camera
     if args.camera_type == "realsense":
@@ -291,7 +285,9 @@ while True:
             print("Failed to grab frame from webcam. Exiting...")
             break
 
+    # Save the original input image before any drawings for later display
     original_frame = frame.copy()
+    input_display = original_frame.copy()
 
     # Resize frame for processing if requested
     if args.resize_factor != 1.0:
@@ -332,13 +328,13 @@ while True:
 
     # Expand each detected bounding box before clustering
     expanded_boxes = [expand_bbox(box, args.roi_margin, gray_frame.shape) for box in boxes]
-    # Cluster the already expanded bounding boxes
+    # Cluster the expanded bounding boxes
     merged_boxes = cluster_bounding_boxes(expanded_boxes, args.cluster_distance) if expanded_boxes else []
 
     bg_runtime = time.time() - start_bg
     print("Background subtraction runtime: {:.2f} ms".format(bg_runtime * 1000))
 
-    # Create a color version of the threshold image to draw ROI boxes
+    # Create an image for Regions of Interest (ROI) by drawing bounding boxes on the threshold image
     thresh_with_boxes = cv.cvtColor(thresh, cv.COLOR_GRAY2BGR)
     for box in merged_boxes:
         square_box = make_square_bbox(box, gray_frame.shape)
@@ -346,7 +342,7 @@ while True:
                      (square_box[0] + square_box[2], square_box[1] + square_box[3]), (0, 255, 0), 2)
 
     # ------------------------
-    # YOLO Processing
+    # YOLO Processing for Object Detection
     # ------------------------
     if merged_boxes:
         union_bbox_all = union_box(merged_boxes)
@@ -355,6 +351,7 @@ while True:
         if union_area > args.yolo_whole_thresh * total_area:
             runtime = run_yolo_on_region(original_frame, (0, 0, original_frame.shape[1], original_frame.shape[0]))
             total_yolo_runtime += runtime
+            cv.rectangle(original_frame, (0, 0), (original_frame.shape[1], original_frame.shape[0]), (0, 255, 0), 2)
         else:
             for bbox in merged_boxes:
                 if args.resize_factor != 1.0:
@@ -370,11 +367,35 @@ while True:
     print("Total YOLO runtime for this loop: {:.2f} ms".format(total_yolo_runtime * 1000))
     diff_data.append({"timestamp": time.time(), "regions": merged_boxes})
 
-    # Resize the images to output dimensions before displaying
-    display_thresh = cv.resize(thresh_with_boxes, (output_width, output_height))
-    display_original = cv.resize(original_frame, (output_width, output_height))
-    cv.imshow('Background Subtraction', display_thresh)
-    cv.imshow('Differences', display_original)
+    # ------------------------
+    # Display
+    # ------------------------
+    if args.display_obj_only:
+        obj_disp = cv.resize(original_frame, (output_width, output_height))
+        cv.imshow('Object Detection', obj_disp)
+    else:
+        # Input Image: original unmodified capture
+        input_disp = cv.resize(input_display, (output_width, output_height))
+        cv.putText(input_disp, "Input Image", (10, 30), cv.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
+
+        # Background Subtraction Output: raw threshold image converted to BGR
+        bg_disp = cv.resize(cv.cvtColor(thresh, cv.COLOR_GRAY2BGR), (output_width, output_height))
+        cv.putText(bg_disp, "Background Subtraction", (10, 30), cv.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
+
+        # Regions of Interest: threshold image with ROI boxes drawn
+        roi_disp = cv.resize(thresh_with_boxes, (output_width, output_height))
+        cv.putText(roi_disp, "Regions of Interest", (10, 30), cv.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
+
+        # Object Detection Output: image with YOLO boxes drawn
+        obj_disp = cv.resize(original_frame, (output_width, output_height))
+        cv.putText(obj_disp, "Object Detection", (10, 30), cv.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
+
+        # Combine into a 2x2 grid for four-pane display
+        top_row = np.hstack([input_disp, bg_disp])
+        bottom_row = np.hstack([roi_disp, obj_disp])
+        combined_disp = np.vstack([top_row, bottom_row])
+        cv.imshow('Four Panes', combined_disp)
+
     
     key = cv.waitKey(delay_ms if live_mode else 0) & 0xFF
     if key == ord('q'):
