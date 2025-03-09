@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import axios from "axios";
 import { useAuth } from "@clerk/nextjs";
-import { MetricCard } from "../../components/MetricCard";
-import { VisualCard } from "../../components/VisualCard";
+import { MetricCard } from "../../../../components/MetricCard";
+import { VisualCard } from "../../../../components/VisualCard";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea"; // Import ShadCN Textarea for notes
 import {
@@ -118,10 +118,7 @@ export default function DetectionDetailPage() {
             />
           </VisualCard>
 
-          <VisualCard
-            title="Notes"
-            description=""
-          >
+          <VisualCard title="Notes" description="">
             <Textarea
               className="w-full p-4 border rounded-md h-full"
               placeholder="Add any notes or observations about this detection..."
