@@ -351,6 +351,7 @@ while True:
         if union_area > args.yolo_whole_thresh * total_area:
             runtime = run_yolo_on_region(original_frame, (0, 0, original_frame.shape[1], original_frame.shape[0]))
             total_yolo_runtime += runtime
+            cv.rectangle(original_frame, (0, 0), (original_frame.shape[1], original_frame.shape[0]), (0, 255, 0), 2)
         else:
             for bbox in merged_boxes:
                 if args.resize_factor != 1.0:
@@ -375,18 +376,26 @@ while True:
     else:
         # Input Image: original unmodified capture
         input_disp = cv.resize(input_display, (output_width, output_height))
+        cv.putText(input_disp, "Input Image", (10, 30), cv.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
+
         # Background Subtraction Output: raw threshold image converted to BGR
         bg_disp = cv.resize(cv.cvtColor(thresh, cv.COLOR_GRAY2BGR), (output_width, output_height))
+        cv.putText(bg_disp, "Background Subtraction", (10, 30), cv.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
+
         # Regions of Interest: threshold image with ROI boxes drawn
         roi_disp = cv.resize(thresh_with_boxes, (output_width, output_height))
+        cv.putText(roi_disp, "Regions of Interest", (10, 30), cv.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
+
         # Object Detection Output: image with YOLO boxes drawn
         obj_disp = cv.resize(original_frame, (output_width, output_height))
+        cv.putText(obj_disp, "Object Detection", (10, 30), cv.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
 
         # Combine into a 2x2 grid for four-pane display
         top_row = np.hstack([input_disp, bg_disp])
         bottom_row = np.hstack([roi_disp, obj_disp])
         combined_disp = np.vstack([top_row, bottom_row])
         cv.imshow('Four Panes', combined_disp)
+
     
     key = cv.waitKey(delay_ms if live_mode else 0) & 0xFF
     if key == ord('q'):
