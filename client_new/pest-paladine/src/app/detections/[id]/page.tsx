@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import axios from "axios";
 import { useAuth } from "@clerk/nextjs";
 import { MetricCard } from "../../components/MetricCard";
 import { VisualCard } from "../../components/VisualCard";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea"; // Import ShadCN Textarea for notes
 import {
   CameraIcon,
   CalendarIcon,
@@ -27,7 +28,7 @@ export default function DetectionDetailPage() {
   const [detection, setDetection] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [note, setNote] = useState(""); // State for user note
 
   useEffect(() => {
     if (!detectionId) {
@@ -59,38 +60,6 @@ export default function DetectionDetailPage() {
     fetchDetectionDetail();
   }, [detectionId]);
 
-  useEffect(() => {
-    if (detection && detection.image_url) {
-      const img = new Image();
-      img.crossOrigin = "anonymous"; // Ensure CORS is handled for external images
-      img.src = detection.image_url;
-
-      img.onload = () => {
-        const canvas = canvasRef.current;
-        if (!canvas) return;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) return;
-
-        // Get bounding box dimensions from API response
-        const { x_min, y_min, x_max, y_max } = detection;
-        const cropWidth = x_max - x_min;
-        const cropHeight = y_max - y_min;
-
-        // Set canvas size based on crop dimensions
-        canvas.width = cropWidth;
-        canvas.height = cropHeight;
-
-        // Draw the cropped image
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(
-          img,
-          x_min, y_min, cropWidth, cropHeight, // Crop from source
-          0, 0, cropWidth, cropHeight // Draw at full size
-        );
-      };
-    }
-  }, [detection]);
-
   if (loading) return <p>Loading...</p>;
   if (error) return <p className="text-red-500">{error}</p>;
   if (!detection) return null;
@@ -99,33 +68,78 @@ export default function DetectionDetailPage() {
     <div className="min-h-screen bg-background p-8">
       <div className="mx-auto max-w-7xl">
         {/* 🔙 Back Button */}
-        <Button variant="outline" onClick={() => router.back()} className="mb-4">
+        <Button
+          variant="outline"
+          onClick={() => router.back()}
+          className="mb-4"
+        >
           ← Back
         </Button>
 
-        <h1 className="mb-8 text-3xl font-bold tracking-tight">Detection Details</h1>
+        <h1 className="mb-8 text-3xl font-bold tracking-tight">
+          Detection Details
+        </h1>
 
         {/* 🔹 Metrics Section */}
         <h2 className="mb-6 text-xl font-bold tracking-tight">Metrics</h2>
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          <MetricCard icon={CalendarIcon} title="Timestamp" value={new Date(timestamp!).toLocaleString()} />
+          <MetricCard
+            icon={CalendarIcon}
+            title="Timestamp"
+            value={new Date(timestamp!).toLocaleString()}
+          />
           <MetricCard icon={PawPrintIcon} title="Species" value={species!} />
-          <MetricCard icon={CameraIcon} title="Camera Name" value={cameraName!} />
-          <MetricCard icon={PercentIcon} title="Confidence" value={`${(detection.confidence * 100).toFixed(2)}%`} />
+          <MetricCard
+            icon={CameraIcon}
+            title="Camera Name"
+            value={cameraName!}
+          />
+          <MetricCard
+            icon={PercentIcon}
+            title="Confidence"
+            value={`${(detection.confidence * 100).toFixed(2)}%`}
+          />
         </div>
 
-        {/* 🔹 Visuals Section */}
-        <h2 className="mb-6 mt-12 text-xl font-bold tracking-tight">Visuals</h2>
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        {/* 🔹 Visuals & Notes Section (Side by Side) */}
+        <h2 className="mb-6 mt-12 text-xl font-bold tracking-tight">
+          Detection Analysis
+        </h2>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Full Detection Image */}
-          <VisualCard title="Detection Image" description="Original image captured by the camera.">
-            <img src={detection.image_url} alt="Detection Image" className="w-full h-full rounded-md object-contain" />
+          <VisualCard
+            title="Detection Image"
+            description="Original image captured by the camera."
+          >
+            <img
+              src={detection.image_url}
+              alt="Detection Image"
+              className="w-full h-full rounded-md object-contain"
+            />
           </VisualCard>
 
-          {/* Cropped Zoom-in View (Canvas) */}
-          <VisualCard title="Zoom-in View" description="Close-up of the detected species.">
-            <canvas ref={canvasRef} className="rounded-md w-full h-auto"></canvas>
+          <VisualCard
+            title="Notes"
+            description=""
+          >
+            <Textarea
+              className="w-full p-4 border rounded-md h-full"
+              placeholder="Add any notes or observations about this detection..."
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+            />
           </VisualCard>
+
+          {/* Notes Section (Now on the right side) */}
+          {/* <div className="flex flex-col">
+            <h2 className="text-xl font-bold tracking-tight mb-4">Notes</h2>
+            <Textarea
+              className="w-full p-4 border rounded-md h-full"
+              placeholder="Add any notes or observations about this detection..."
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+            />
+          </div> */}
         </div>
       </div>
     </div>

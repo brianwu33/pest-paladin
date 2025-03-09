@@ -10,13 +10,13 @@ export default function Home() {
     <div className="min-h-screen flex flex-col items-center justify-center bg-background p-8">
       {/* App Name */}
       <div className="absolute top-6 left-8 text-2xl font-bold text-primary">
-        Pest Paladine
+        Pest Paladin
       </div>
 
       {/* Hero Section */}
       <div className="text-center max-w-3xl">
         <h1 className="text-4xl font-bold tracking-tight text-primary">
-          Protect Your Space with Pest Paladine
+          Protect Your Space with Pest Paladin
         </h1>
         <p className="mt-4 text-lg text-muted-foreground">
           AI-powered pest detection for a safer environment. Get real-time alerts
