@@ -37,19 +37,24 @@ parser.add_argument("--noise_filter_kernel", type=int, default=3, help="Kernel s
 # New argument to decide when to pass the whole image to YOLO
 parser.add_argument("--yolo_whole_thresh", type=float, default=0.5,
                     help="If the combined ROI area exceeds this fraction of the total image area, pass the whole image to YOLO")
+# New argument for YOLO confidence threshold
+parser.add_argument("--min_confidence", type=float, default=0.25,
+                    help="Minimum confidence threshold for YOLO detections")
 # New argument for live mode: target FPS. If set > 0, live mode is enabled.
-parser.add_argument("--live_fps", type=float, default=0,
+parser.add_argument("--fps", type=float, default=0,
                     help="Target FPS for live mode. Set > 0 to enable live mode (can be less than 1).")
-# New argument to choose the camera type: "realsense" or "webcam"
-parser.add_argument("--camera_type", type=str, choices=["realsense", "webcam", "realsense_ir"], default="realsense",
-                    help="Camera type to use: realsense or webcam")
+# Updated camera type choices to include 'video'
+parser.add_argument("--camera", type=str, choices=["realsense", "webcam", "realsense_ir", "video"], default="video",
+                    help="Camera type to use: realsense, webcam, realsense_ir, or video")
+# New argument for video file path when using video mode
+parser.add_argument("--video_file", type=str, default="video.mp4", help="Path to video file for streaming on loop")
 # New flag: if set, only display the object detection output pane
-parser.add_argument("--display_obj_only", action="store_true",
+parser.add_argument("--simple_display", action="store_true",
                     help="Display only the object detection output pane instead of the four-pane view")
 args = parser.parse_args()
 
 # Parse output dimensions argument (for each pane, e.g., "640x360")
-if args.display_obj_only:
+if args.simple_display:
     output_width, output_height = map(int, args.output_dims.split('x'))
 else:
     output_width, output_height = map(int, args.output_dims.split('x'))
@@ -61,17 +66,17 @@ else:
 # ------------------------
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 model = torch.hub.load('ultralytics/yolov5', 'custom', path=args.weights, force_reload=True).to(device)
-model.conf = 0.1  # Set confidence threshold for YOLO detections
+model.conf = args.min_confidence
 
 # ------------------------
-# Camera Capture Setup
+# Camera/Video Capture Setup
 # ------------------------
-if args.camera_type == "realsense":
+if args.camera == "realsense":
     pipeline = rs.pipeline()
     config = rs.config()
     config.enable_stream(rs.stream.color, 1920, 1080, rs.format.bgr8, 30)
     pipeline.start(config)
-elif args.camera_type == "realsense_ir":
+elif args.camera == "realsense_ir":
     pipeline = rs.pipeline()
     config = rs.config()
     config.enable_stream(rs.stream.infrared, 1, 1280, 720, rs.format.y8, 30)
@@ -79,6 +84,12 @@ elif args.camera_type == "realsense_ir":
     for s in selection.get_device().query_sensors():
         if s.is_depth_sensor():
             s.set_option(rs.option.emitter_enabled, 0)
+elif args.camera == "video":
+    # Use a video file as the source
+    cap = cv.VideoCapture(args.video_file)
+    if not cap.isOpened():
+        print(f"Error: Cannot open video file {args.video_file}")
+        exit()
 else:
     # Normal webcam using OpenCV VideoCapture
     cap = cv.VideoCapture(0)
@@ -220,7 +231,7 @@ def run_yolo_on_region(frame, bbox):
 # Background Initialization
 # ------------------------
 if args.bg_method == "baseline":
-    if args.camera_type == "realsense":
+    if args.camera == "realsense":
         frames = pipeline.wait_for_frames()
         color_frame = frames.get_infrared_frame()
         if not color_frame:
@@ -228,6 +239,11 @@ if args.bg_method == "baseline":
             exit()
         frame = np.asanyarray(color_frame.get_data())
         frame = cv.cvtColor(frame, cv.COLOR_GRAY2BGR)
+    elif args.camera == "video":
+        ret, frame = cap.read()
+        if not ret:
+            print("Cannot capture from video file")
+            exit()
     else:  # webcam
         ret, frame = cap.read()
         if not ret:
@@ -250,10 +266,10 @@ else:
 diff_data = []
 
 # Determine mode and frame delay if live mode is enabled
-live_mode = args.live_fps > 0
+live_mode = args.fps > 0
 if live_mode:
-    delay_ms = int(1000.0 / args.live_fps)
-    print(f"Live mode enabled with target FPS: {args.live_fps} (delay: {delay_ms} ms per frame)")
+    delay_ms = int(1000.0 / args.fps)
+    print(f"Live mode enabled with target FPS: {args.fps} (delay: {delay_ms} ms per frame)")
 else:
     print("Manual mode: Press any key to proceed to the next frame, or 'q' to exit.")
 
@@ -264,14 +280,14 @@ while True:
     total_yolo_runtime = 0.0  # Accumulate YOLO runtimes per loop iteration
 
     # Capture frame based on selected camera
-    if args.camera_type == "realsense":
+    if args.camera == "realsense":
         frames = pipeline.wait_for_frames()
         color_frame = frames.get_color_frame()
         if not color_frame:
             print("Failed to acquire color frame. Exiting...")
             break
         frame = np.asanyarray(color_frame.get_data())
-    elif args.camera_type == "realsense_ir":
+    elif args.camera == "realsense_ir":
         frames = pipeline.wait_for_frames()
         ir_frame = frames.get_infrared_frame()
         if not ir_frame:
@@ -279,6 +295,15 @@ while True:
             break
         frame = np.asanyarray(ir_frame.get_data())
         frame = cv.cvtColor(frame, cv.COLOR_GRAY2BGR)
+    elif args.camera == "video":
+        ret, frame = cap.read()
+        # If the video has ended, reset to the first frame and try again
+        if not ret:
+            cap.set(cv.CAP_PROP_POS_FRAMES, 0)
+            ret, frame = cap.read()
+            if not ret:
+                print("Failed to read video file. Exiting...")
+                break
     else:  # webcam
         ret, frame = cap.read()
         if not ret:
@@ -370,7 +395,7 @@ while True:
     # ------------------------
     # Display
     # ------------------------
-    if args.display_obj_only:
+    if args.simple_display:
         obj_disp = cv.resize(original_frame, (output_width, output_height))
         cv.imshow('Object Detection', obj_disp)
     else:
@@ -396,7 +421,6 @@ while True:
         combined_disp = np.vstack([top_row, bottom_row])
         cv.imshow('Four Panes', combined_disp)
 
-    
     key = cv.waitKey(delay_ms if live_mode else 0) & 0xFF
     if key == ord('q'):
         break
@@ -405,7 +429,7 @@ with open("image_differences.json", "w") as json_file:
     json.dump(diff_data, json_file, indent=4)
 
 # Clean up: release camera resources
-if args.camera_type == "realsense" or args.camera_type == "realsense_ir":
+if args.camera == "realsense" or args.camera == "realsense_ir":
     pipeline.stop()
 else:
     cap.release()
