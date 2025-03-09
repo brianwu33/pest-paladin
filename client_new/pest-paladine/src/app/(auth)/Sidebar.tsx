@@ -13,12 +13,13 @@ import {
 
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { LayoutGrid, Scan, Camera } from "lucide-react"; // Icons similar to your reference image
+import { LayoutGrid, Scan, Camera, Users } from "lucide-react"; // Icons similar to your reference image
 
 const sidebarLinks = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutGrid },
   { title: "My Detections", url: "/detections", icon: Scan },
   { title: "Live Feed", url: "/live-feed", icon: Camera },
+  { title: "Our Team", url: "/our-team", icon: Users}
 ];
 
 export default function AppSidebar() {
@@ -31,7 +32,7 @@ export default function AppSidebar() {
         <div className="flex items-center gap-3">
           <img src="/logo.svg" alt="Pest Paladine Logo" className="h-10 w-10" />
           <span className="text-2xl font-bold text-gray-900 tracking-tight">
-            Pest Paladine
+            Pest Paladin
           </span>
         </div>
       </SidebarHeader>

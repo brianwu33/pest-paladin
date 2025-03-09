@@ -1,10 +1,8 @@
+// Refactored layout.tsx
 import type { Metadata } from "next";
-import { ClerkProvider, SignedIn } from "@clerk/nextjs";
+import { ClerkProvider, SignedIn, SignedOut } from "@clerk/nextjs";
 import "./globals.css";
-import Header from "./components/Header";
-import AppSidebar from "./components/Sidebar";
-import { AuthRedirect } from "./components/AuthRedirect";
-import { SidebarProvider } from "@/components/ui/sidebar";
+import { AuthRedirect } from "./AuthRedirect";
 
 export const metadata: Metadata = {
   title: "Pest Paladine",
@@ -15,29 +13,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <ClerkProvider>
       <html lang="en">
-        <body className="flex h-screen">
-          {/* Redirect Logic */}
+        <head>
+          <link rel="icon" href="/logo.svg" />
+        </head>
+        <body className="flex h-screen items-center justify-center">
           <AuthRedirect />
 
-          <SidebarProvider>
-            <div className="flex w-full">
-              {/* Sidebar (Only for Signed In Users) */}
-              <SignedIn>
-                <AppSidebar />
-              </SignedIn>
-
-              {/* Main Content */}
-              <div className="flex-1 flex flex-col">
-                {/* Header (Only for Signed In Users) */}
-                <SignedIn>
-                  <Header />
-                </SignedIn>
-
-                {/* Page Content */}
-                <main className="flex-1 p-4">{children}</main>
-              </div>
-            </div>
-          </SidebarProvider>
+          {/* Main Content */}
+          <div className="w-full mx-auto p-4">
+            {children}
+          </div>
         </body>
       </html>
     </ClerkProvider>

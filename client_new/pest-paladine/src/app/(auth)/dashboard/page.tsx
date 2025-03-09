@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 import { useAuth } from "@clerk/nextjs";
-import { MetricCard } from "../components/MetricCard";
-import { VisualCard } from "../components/VisualCard";
+import { MetricCard } from "../../../components/MetricCard";
+import { VisualCard } from "../../../components/VisualCard";
 import { Clock, MousePointer, Rat, Timer } from "lucide-react";
 import {
   AreaChart,
@@ -52,11 +52,15 @@ export default function Home() {
 
       setDashboardData({
         totalDetections: response.data.totalDetections,
-        mostFrequentSpecies: response.data.mostFrequentSpecies,
-        mostDetectionCamera: response.data.mostDetectionCamera,
+        mostFrequentSpecies: response.data.mostFrequentSpecies !== "N/A"
+          ? response.data.mostFrequentSpecies
+          : "N/A",
+        mostDetectionCamera: response.data.mostDetectionCamera !== "N/A"
+          ? response.data.mostDetectionCamera
+          : "N/A",
         latestDetection: response.data.latestDetection
           ? formatTimeAgo(response.data.latestDetection)
-          : "N/A",
+          : "No Recent Activity",
         peakActivityData: response.data.peakActivityData || [],
         pestTypeData: response.data.pestTypeData || [],
         dailyDetectionTrend: response.data.dailyDetectionTrend || [],
@@ -83,7 +87,10 @@ export default function Home() {
 
     if (isNaN(detectionTime.getTime())) return "N/A";
 
-    const diffInSeconds = Math.max(0, Math.floor((now.getTime() - detectionTime.getTime()) / 1000));
+    const diffInSeconds = Math.max(
+      0,
+      Math.floor((now.getTime() - detectionTime.getTime()) / 1000)
+    );
     const diffInMinutes = Math.floor(diffInSeconds / 60);
     const diffInHours = Math.floor(diffInSeconds / 3600);
     const diffInDays = Math.floor(diffInSeconds / 86400);
@@ -108,7 +115,9 @@ export default function Home() {
           <MetricCard
             icon={MousePointer}
             title="Total Detection"
-            value={loading ? "Loading..." : dashboardData.totalDetections.toString()}
+            value={
+              loading ? "Loading..." : dashboardData.totalDetections.toString()
+            }
           />
           <MetricCard
             icon={Timer}
@@ -141,7 +150,12 @@ export default function Home() {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="time" />
                 <YAxis />
-                <Area type="monotone" dataKey="count" stroke="#4ade80" fill="#86efac" />
+                <Area
+                  type="monotone"
+                  dataKey="count"
+                  stroke="#4ade80"
+                  fill="#86efac"
+                />
               </AreaChart>
             </ResponsiveContainer>
           </VisualCard>
@@ -161,7 +175,14 @@ export default function Home() {
                   label={({ name, value }) => `${name} - ${value}%`}
                 >
                   {dashboardData.pestTypeData.map((entry, index) => (
-                    <Cell key={index} fill={["#4ade80", "#86efac", "#6ee7b7", "#a5f3fc", "#bef264"][index % 5]} />
+                    <Cell
+                      key={index}
+                      fill={
+                        ["#4ade80", "#86efac", "#6ee7b7", "#a5f3fc", "#bef264"][
+                          index % 5
+                        ]
+                      }
+                    />
                   ))}
                 </Pie>
               </PieChart>
@@ -177,7 +198,12 @@ export default function Home() {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="date" />
                 <YAxis />
-                <Area type="monotone" dataKey="count" stroke="#4ade80" fill="#86efac" />
+                <Area
+                  type="monotone"
+                  dataKey="count"
+                  stroke="#4ade80"
+                  fill="#86efac"
+                />
               </AreaChart>
             </ResponsiveContainer>
           </VisualCard>
@@ -197,7 +223,14 @@ export default function Home() {
                   label={({ name, value }) => `${name} - ${value}%`}
                 >
                   {dashboardData.cameraData.map((entry, index) => (
-                    <Cell key={index} fill={["#4ade80", "#86efac", "#6ee7b7", "#a5f3fc", "#bef264"][index % 5]} />
+                    <Cell
+                      key={index}
+                      fill={
+                        ["#4ade80", "#86efac", "#6ee7b7", "#a5f3fc", "#bef264"][
+                          index % 5
+                        ]
+                      }
+                    />
                   ))}
                 </Pie>
               </PieChart>
