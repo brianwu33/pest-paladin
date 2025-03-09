@@ -52,11 +52,15 @@ export default function Home() {
 
       setDashboardData({
         totalDetections: response.data.totalDetections,
-        mostFrequentSpecies: response.data.mostFrequentSpecies,
-        mostDetectionCamera: response.data.mostDetectionCamera,
+        mostFrequentSpecies: response.data.mostFrequentSpecies !== "N/A"
+          ? response.data.mostFrequentSpecies
+          : "N/A",
+        mostDetectionCamera: response.data.mostDetectionCamera !== "N/A"
+          ? response.data.mostDetectionCamera
+          : "N/A",
         latestDetection: response.data.latestDetection
           ? formatTimeAgo(response.data.latestDetection)
-          : "N/A",
+          : "No Recent Activity",
         peakActivityData: response.data.peakActivityData || [],
         pestTypeData: response.data.pestTypeData || [],
         dailyDetectionTrend: response.data.dailyDetectionTrend || [],

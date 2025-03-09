@@ -23,6 +23,7 @@ export function MetricCard({ icon: Icon, title, value }: CardMetricProps) {
           >
             {value}
           </p>
+          {/* <p className="font-bold text-base">{value}</p> */}
         </div>
       </CardContent>
     </Card>
