@@ -7,6 +7,7 @@ const pool = require("./config/db.js");
 const authMiddleware = require("./middlewares/authMiddleware.js"); // Import authMiddleware
 
 // Import Routes
+const publicRoutes = require("./routes/publicRoutes.js");
 const detectionRoutes = require("./routes/detectionRoutes.js");
 const analyticRoutes = require("./routes/analyticRoutes.js");
 const cameraRoutes = require("./routes/cameraRoutes.js"); // ✅ Add Camera Routes
@@ -44,6 +45,9 @@ app.get("/hi", (req, res) => {
   console.log("🔹 Received request to '/hi' route");
   res.send("Endpoint is running");
 });
+
+// Public Routes (No Authentication Required)
+app.use("/api/uploadDetection", publicRoutes); // Exempt from Auth
 
 // Protected Routes (Require Authentication)
 app.use("/api/detections", authMiddleware, detectionRoutes);
