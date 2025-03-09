@@ -17,15 +17,16 @@ export default function Home() {
 
         {/* Hero Section */}
         <div className="text-center max-w-3xl mx-auto">
-          <h1 className="text-4xl font-bold tracking-tight text-primary">
-            Protect Your Space with &lt;Pest Paladin /&gt;
-          </h1>
           <TypingEffect
-            text="AI-powered pest detection for a safer environment. Get real-time alerts and monitor your space with ease."
-            speed={50}
-            as="p"
-            className="mt-4 text-lg text-muted-foreground"
+            text="Protect Your Space with &lt;Pest Paladin /&gt;"
+            speed={75}
+            as="h1"
+            className="text-4xl font-bold tracking-tight text-primary"
           />
+          <p className="mt-4 text-lg text-muted-foreground">
+            AI-powered pest detection for a safer environment. Get real-time
+            alerts and monitor your space with ease.
+          </p>
 
           {/* Clerk Auth Buttons */}
           <div className="mt-6 flex gap-4 justify-center">
