@@ -12,7 +12,7 @@ const router = express.Router();
  */
 router.post("/", upload.single("image"), async (req, res) => {
   try {
-    const { timestamp, cameraID, detections } = req.body;
+    const { cameraID, detections } = req.body;
     const imageKey = req.file?.key || null;
 
     let parsedDetections = detections;
@@ -47,9 +47,9 @@ router.post("/", upload.single("image"), async (req, res) => {
 
     // Insert detections into `detections` table
     const detectionQuery = `
-          INSERT INTO detections (detection_id, timestamp, user_id, camera_name, image_key, 
+          INSERT INTO detections (detection_id, user_id, camera_name, image_key, 
           x_min, x_max, y_min, y_max, class_id, species, confidence)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
       `;
 
     for (const detection of parsedDetections) {
@@ -65,7 +65,6 @@ router.post("/", upload.single("image"), async (req, res) => {
 
       const detectionValues = [
         uuidv4(),
-        timestamp,
         userID,
         cameraName,
         imageKey,
