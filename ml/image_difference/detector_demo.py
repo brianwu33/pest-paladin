@@ -305,6 +305,10 @@ while True:
                 print("Failed to read video file. Exiting...")
                 break
     else:  # webcam
+        # Flush the buffer if in live mode with very low FPS
+        if live_mode and args.fps < 1:
+            for _ in range(5):  # adjust the number as needed
+                cap.grab()
         ret, frame = cap.read()
         if not ret:
             print("Failed to grab frame from webcam. Exiting...")
