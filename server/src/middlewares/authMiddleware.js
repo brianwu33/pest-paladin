@@ -9,7 +9,7 @@ const authMiddleware = (req, res, next) => {
       return res.status(401).json({ error: "Unauthorized: No token provided" });
     }
 
-    console.log("🔹 Extracted JWT Token:", authHeader.split(" ")[1]);
+    // console.log("🔹 Extracted JWT Token:", authHeader.split(" ")[1]);
 
     // Clerk Authentication Middleware (Validates JWT Automatically)
     ClerkExpressRequireAuth()(req, res, next);
