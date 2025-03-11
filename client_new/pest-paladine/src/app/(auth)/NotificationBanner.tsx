@@ -58,7 +58,7 @@ export default function NotificationBanner() {
                     <button
                         className="mt-2 inline-block text-green-500 text-sm font-medium hover:underline"
                     >
-                        View Live Feed →
+                        View Detection Data →
                     </button>
                 </Link>
             </div>

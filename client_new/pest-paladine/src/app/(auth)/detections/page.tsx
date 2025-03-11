@@ -17,7 +17,7 @@ export default function DetectionsPage() {
   const [error, setError] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const pageSize = 10; // Number of detections per page
+  const pageSize = 14; // Number of detections per page
 
   // Fetch paginated detections
   const fetchDetections = async (page = 1) => {
@@ -58,7 +58,7 @@ export default function DetectionsPage() {
       {error && <p className="text-red-500">{error}</p>}
 
       <div className="mt-4">
-        <DataTable columns={columns} data={detections} />
+        <DataTable columns={columns} data={detections} pageSize={pageSize}/>
         <DataTablePagination
           currentPage={currentPage}
           totalPages={totalPages}

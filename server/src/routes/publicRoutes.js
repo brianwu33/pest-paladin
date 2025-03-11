@@ -98,8 +98,8 @@ router.post("/", uploadImage.single("image"), async (req, res) => {
 
     sendNotificationToUser(userID, {
       title: "New Detection Alert!",
-      message: "A new detection has been reported. Click to view live feed.",
-      link: "/live-feed",
+      message: "A new detection has been reported. Click to view new detection data.",
+      link: "/detections",
     });
 
     res.status(201).json({

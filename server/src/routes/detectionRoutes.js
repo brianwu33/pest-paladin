@@ -15,7 +15,8 @@ router.get("/", authMiddleware, async (req, res) => {
   try {
     const userID = req.auth.userId; // Extract userId from JWT
     const page = parseInt(req.query.page) || 1; // Default page = 1
-    const limit = parseInt(req.query.limit) || 10; // Default limit = 10
+    const limit = parseInt(req.query.limit) || 15; // Default limit = 10
+    console.log("Page Size: " + limit);
     const offset = (page - 1) * limit; // Calculate pagination offset
 
     // Get total count of detections for pagination

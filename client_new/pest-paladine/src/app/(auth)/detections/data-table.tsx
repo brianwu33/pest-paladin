@@ -19,17 +19,20 @@ import {
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
+  pageSize: number; // ✅ Add pageSize as a prop for consistency
 }
 
 export function DataTable<TData, TValue>({
   columns,
   data,
+  pageSize, // ✅ Ensure pageSize is passed in
 }: DataTableProps<TData, TValue>) {
   const table = useReactTable({
     data,
     columns,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
+    initialState: { pagination: { pageSize } }, // ✅ Ensure correct page size
   });
 
   return (
