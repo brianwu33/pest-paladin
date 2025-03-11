@@ -4,10 +4,9 @@ import { useEffect, useState } from "react";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import axios from "axios";
 import { useAuth } from "@clerk/nextjs";
-import { MetricCard } from "../../../../components/MetricCard";
-import { VisualCard } from "../../../../components/VisualCard";
+import { MetricCard } from "@/components/MetricCard";
+import { VisualCard } from "@/components/VisualCard";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea"; // Import ShadCN Textarea for notes
 import {
   CameraIcon,
   CalendarIcon,
@@ -28,7 +27,6 @@ export default function DetectionDetailPage() {
   const [detection, setDetection] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [note, setNote] = useState(""); // State for user note
 
   useEffect(() => {
     if (!detectionId) {
@@ -101,7 +99,7 @@ export default function DetectionDetailPage() {
           />
         </div>
 
-        {/* 🔹 Visuals & Notes Section (Side by Side) */}
+        {/* 🔹 Visuals Section (Original & Cropped Images Side by Side) */}
         <h2 className="mb-6 mt-12 text-xl font-bold tracking-tight">
           Detection Analysis
         </h2>
@@ -118,25 +116,17 @@ export default function DetectionDetailPage() {
             />
           </VisualCard>
 
-          <VisualCard title="Notes" description="">
-            <Textarea
-              className="w-full p-4 border rounded-md h-full"
-              placeholder="Add any notes or observations about this detection..."
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
+          {/* Cropped Image */}
+          <VisualCard
+            title="Cropped Detection"
+            description="Cropped section of the original image focusing on the detected object."
+          >
+            <img
+              src={detection.cropped_image_url}
+              alt="Cropped Detection Image"
+              className="w-full h-full rounded-md object-contain"
             />
           </VisualCard>
-
-          {/* Notes Section (Now on the right side) */}
-          {/* <div className="flex flex-col">
-            <h2 className="text-xl font-bold tracking-tight mb-4">Notes</h2>
-            <Textarea
-              className="w-full p-4 border rounded-md h-full"
-              placeholder="Add any notes or observations about this detection..."
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-            />
-          </div> */}
         </div>
       </div>
     </div>

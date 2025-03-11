@@ -1,8 +1,9 @@
 const express = require("express");
 const pool = require("../config/db");
 const { v4: uuidv4 } = require("uuid");
-const { upload } = require("../middlewares/upload");
-const { sendNotificationToUser } = require("../websocket"); // ✅ Correct Import
+const { uploadImageToS3, cropImage } = require("../utils/awsUtil"); // Updated Imports
+const uploadImage = require("../middlewares/imageUploadMiddleware"); // ✅ New Middleware
+const { sendNotificationToUser } = require("../websocket");
 
 const router = express.Router();
 
@@ -10,10 +11,16 @@ const router = express.Router();
  * 🔹 Upload Detection Data (POST)
  * ✅ No Authentication Required - Used by Raspberry Pi
  */
-router.post("/", upload.single("image"), async (req, res) => {
+router.post("/", uploadImage.single("image"), async (req, res) => {
   try {
     const { cameraID, detections } = req.body;
-    const imageKey = req.file?.key || null;
+    const originalImageBuffer = req.file?.buffer; // ✅ Extract the uploaded image directly
+
+    if (!originalImageBuffer) {
+      return res.status(400).json({ error: "Original image is required" });
+    }
+
+    const originalImageKey = await uploadImageToS3(originalImageBuffer, true); // ✅ Original Image Upload
 
     let parsedDetections = detections;
     if (typeof detections === "string") {
@@ -45,11 +52,10 @@ router.post("/", upload.single("image"), async (req, res) => {
 
     const { user_id: userID, camera_name: cameraName } = userResult.rows[0];
 
-    // Insert detections into `detections` table
     const detectionQuery = `
-          INSERT INTO detections (detection_id, user_id, camera_name, image_key, 
+          INSERT INTO detections (detection_id, user_id, camera_name, image_key, cropped_image_key, 
           x_min, x_max, y_min, y_max, class_id, species, confidence)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
       `;
 
     for (const detection of parsedDetections) {
@@ -63,11 +69,22 @@ router.post("/", upload.single("image"), async (req, res) => {
         continue;
       }
 
+      const croppedImageBuffer = await cropImage(
+        originalImageBuffer,
+        detection.x_min,
+        detection.x_max,
+        detection.y_min,
+        detection.y_max
+      );
+
+      const croppedImageKey = await uploadImageToS3(croppedImageBuffer, false); // ✅ Cropped Image Upload
+
       const detectionValues = [
         uuidv4(),
         userID,
         cameraName,
-        imageKey,
+        originalImageKey,
+        croppedImageKey,
         detection.x_min,
         detection.x_max,
         detection.y_min,
@@ -79,7 +96,6 @@ router.post("/", upload.single("image"), async (req, res) => {
       await pool.query(detectionQuery, detectionValues);
     }
 
-    // Send notification to the specific user
     sendNotificationToUser(userID, {
       title: "New Detection Alert!",
       message: "A new detection has been reported. Click to view live feed.",
@@ -88,7 +104,7 @@ router.post("/", upload.single("image"), async (req, res) => {
 
     res.status(201).json({
       message: "Upload successful",
-      data: { image_key: imageKey },
+      data: { image_key: originalImageKey },
     });
   } catch (error) {
     console.error("❌ Error saving detection:", error);
