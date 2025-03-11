@@ -3,18 +3,17 @@ import cv2 as cv
 import time
 import json
 import torch
-import onnxruntime
 from PIL import Image
 import argparse
 import pathlib
 import logging
 import requests
-import pyrealsense2 as rs  # Still needed for RealSense mode
 from concurrent.futures import ThreadPoolExecutor  # Thread pool for non-blocking API calls
 logging.basicConfig(level=logging.INFO)
 
-executor = ThreadPoolExecutor(max_workers=3)  # 3 threads for parallel processing
-detection_executor = ThreadPoolExecutor(max_workers=2)  # Separate thread pool for YOLO
+# For Windows compatibility if needed
+temp = pathlib.PosixPath
+pathlib.PosixPath = pathlib.WindowsPath
 
 # ------------------------
 # Parameterization via argparse
@@ -49,14 +48,22 @@ parser.add_argument("--min_confidence", type=float, default=0.25,
 parser.add_argument("--fps", type=float, default=0,
                     help="Target FPS for live mode. Set > 0 to enable live mode (can be less than 1).")
 # Updated camera type choices to include 'video'
-parser.add_argument("--camera", type=str, choices=["realsense", "webcam", "realsense_ir", "video"], default="video",
+parser.add_argument("--camera", type=str, choices=["realsense", "webcam", "realsense_ir", "video"], default="webcam",
                     help="Camera type to use: realsense, webcam, realsense_ir, or video")
 # New argument for video file path when using video mode
 parser.add_argument("--video_file", type=str, default="video.mp4", help="Path to video file for streaming on loop")
 # New flag: if set, only display the object detection output pane
 parser.add_argument("--simple_display", action="store_true",
                     help="Display only the object detection output pane instead of the four-pane view")
+parser.add_argument("--send_detection", type=bool, default=False, help="Send detection data to API")
+parser.add_argument("--camera_id", type=str, default="550e8400-e29b-41d4-a716-446655440000", help="Camera ID name.")
 args = parser.parse_args()
+
+if args.send_detection:
+    executor = ThreadPoolExecutor(max_workers=1)  # 3 threads for parallel processing
+
+if args.weights.endswith('.onnx'):
+    import onnxruntime
 
 # Parse output dimensions argument (for each pane, e.g., "640x360")
 if args.simple_display:
@@ -82,11 +89,15 @@ model.conf = args.min_confidence
 # Camera/Video Capture Setup
 # ------------------------
 if args.camera == "realsense":
+    import pyrealsense2 as rs
+
     pipeline = rs.pipeline()
     config = rs.config()
     config.enable_stream(rs.stream.color, 1920, 1080, rs.format.bgr8, 30)
     pipeline.start(config)
 elif args.camera == "realsense_ir":
+    import pyrealsense2 as rs
+
     pipeline = rs.pipeline()
     config = rs.config()
     config.enable_stream(rs.stream.infrared, 1, 1280, 720, rs.format.y8, 30)
@@ -160,38 +171,6 @@ def send_detection_async(image, camera_id, detections):
 
     logging.info("Submitting send_detection_async to thread pool.")
     executor.submit(send_request)
-    
-# ------------------------
-# YOLO Object Detection Processing Function
-# ------------------------
-def run_yolo_on_frame_async(frame, camera_id="550e8400-e29b-41d4-a716-446655440000"):
-    """Offload YOLO processing to a separate thread."""
-    
-    def process_frame():
-        image = Image.fromarray(cv.cvtColor(frame, cv.COLOR_BGR2RGB))
-        results = model(image)  # Runs on a separate thread now
-
-        detections = []
-        for _, row in results.pandas().xyxy[0].iterrows():
-            x1, y1, x2, y2, conf, cls, name = row[["xmin", "ymin", "xmax", "ymax", "confidence", "class", "name"]]
-            detections.append({
-                "x_min": float(x1),
-                "x_max": float(x2),
-                "y_min": float(y1),
-                "y_max": float(y2),
-                "class": int(cls),
-                "species": name,
-                "confidence": round(float(conf), 2)
-            })
-
-        if detections:
-            # timestamp = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-            # logging.info(f"Detected {len(detections)} objects, sending to API...")
-            send_detection_async(frame, camera_id, detections)
-        else:
-            logging.info("🔵 No detections found, skipping API call.")
-
-    detection_executor.submit(process_frame)
 
 # ------------------------
 # Utility Functions for Bounding Box Clustering and ROI Expansion
@@ -316,12 +295,25 @@ def run_yolo_on_region(frame, bbox):
         for col in ['ymin', 'ymax']:
             detections[col] = detections[col] * scale_y
 
+    formatted_detections = []
+
     for _, row in detections.iterrows():
         x1, y1, x2, y2, conf, cls, name = row[['xmin', 'ymin', 'xmax', 'ymax', 'confidence', 'class', 'name']]
+        print(f"Detected {name} with confidence {conf:.2f}")
         cv.rectangle(cropped_region, (int(x1), int(y1)), (int(x2), int(y2)), (255, 0, 0), 2)
         cv.putText(cropped_region, f"{name} ({conf:.2f})", (int(x1), int(y1)-10),
                    cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
-    return yolo_runtime
+        formatted_detections.append({
+            "x_min": float(x1),
+            "x_max": float(x2),
+            "y_min": float(y1),
+            "y_max": float(y2),
+            "class": int(cls),
+            "species": name,
+            "confidence": round(float(conf), 2)
+        })
+
+    return [yolo_runtime, formatted_detections]
 
 
 
@@ -457,9 +449,6 @@ while True:
     expanded_boxes = [expand_bbox(box, args.roi_margin, gray_frame.shape) for box in boxes]
     # Cluster the expanded bounding boxes
     merged_boxes = cluster_bounding_boxes(expanded_boxes, args.cluster_distance) if expanded_boxes else []
-
-    #**Call YOLO Detection Here**
-    run_yolo_on_frame_async(original_frame)  #Now processing the frame for detection
     
     bg_runtime = time.time() - start_bg
     print("Background subtraction runtime: {:.2f} ms".format(bg_runtime * 1000))
@@ -478,11 +467,14 @@ while True:
         union_bbox_all = union_box(merged_boxes)
         union_area = union_bbox_all[2] * union_bbox_all[3]
         total_area = original_frame.shape[0] * original_frame.shape[1]
+
+        # close up - run on all
         if union_area > args.yolo_whole_thresh * total_area:
-            runtime = run_yolo_on_region(original_frame, (0, 0, original_frame.shape[1], original_frame.shape[0]))
+            runtime, detections = run_yolo_on_region(original_frame, (0, 0, original_frame.shape[1], original_frame.shape[0]))
             total_yolo_runtime += runtime
             cv.rectangle(original_frame, (0, 0), (original_frame.shape[1], original_frame.shape[0]), (0, 255, 0), 2)
         else:
+            detections = []
             for bbox in merged_boxes:
                 if args.resize_factor != 1.0:
                     scale = 1.0 / args.resize_factor
@@ -491,11 +483,15 @@ while True:
                 square_bbox = make_square_bbox(bbox, original_frame.shape)
                 cv.rectangle(original_frame, (square_bbox[0], square_bbox[1]),
                              (square_bbox[0] + square_bbox[2], square_bbox[1] + square_bbox[3]), (0, 255, 0), 2)
-                runtime = run_yolo_on_region(original_frame, square_bbox)
+                runtime, box_detections = run_yolo_on_region(original_frame, square_bbox)
                 total_yolo_runtime += runtime
+                detections += box_detections
 
     print("Total YOLO runtime for this loop: {:.2f} ms".format(total_yolo_runtime * 1000))
     diff_data.append({"timestamp": time.time(), "regions": merged_boxes})
+
+    if detections and args.send_detection:
+        send_detection_async(input_display, args.camera_id, detections)
 
     # ------------------------
     # Display
