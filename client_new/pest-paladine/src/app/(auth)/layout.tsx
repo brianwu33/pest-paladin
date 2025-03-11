@@ -2,12 +2,15 @@ import { SignedIn } from "@clerk/nextjs";
 import Header from "./Header";
 import AppSidebar from "./Sidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
+import NotificationBanner from "./NotificationBanner";
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
     <SignedIn>
       <SidebarProvider>
         <div className="flex w-full h-screen">
+          {/* Global Notification Banner */}
+          <NotificationBanner />
           {/* Sidebar */}
           <AppSidebar aria-label="Sidebar Navigation"/>
 

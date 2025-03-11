@@ -37,6 +37,7 @@ export default function DetectionsPage() {
       );
 
       setDetections(response.data.detections);
+      console.log(response.data.detections);
       setTotalPages(response.data.totalPages);
       setCurrentPage(response.data.currentPage);
     } catch (err) {
