@@ -7,16 +7,21 @@ import onnxruntime
 from PIL import Image
 import argparse
 import pathlib
+import logging
+import requests
 import pyrealsense2 as rs  # Still needed for RealSense mode
+from concurrent.futures import ThreadPoolExecutor  # Thread pool for non-blocking API calls
+logging.basicConfig(level=logging.INFO)
 
-# For Windows compatibility if needed
-temp = pathlib.PosixPath
-pathlib.PosixPath = pathlib.WindowsPath
+executor = ThreadPoolExecutor(max_workers=3)  # 3 threads for parallel processing
+detection_executor = ThreadPoolExecutor(max_workers=2)  # Separate thread pool for YOLO
 
 # ------------------------
 # Parameterization via argparse
 # ------------------------
 parser = argparse.ArgumentParser(description="Image Difference with YOLO Object Detection")
+parser.add_argument("--server_ip", type=str, default="localhost:3001",
+                    help="IP address and port of the API server (e.g., 192.168.1.100:3001)")
 parser.add_argument("--weights", type=str, default="weights/yolov5x_v2_and_close_1.pt",
                     help="Path to the YOLO weights file")
 parser.add_argument("--output_dims", type=str, default="1720x960",
@@ -60,6 +65,11 @@ else:
     output_width, output_height = map(int, args.output_dims.split('x'))
     output_width //= 2
     output_height //= 2
+    
+# ------------------------
+# API Call Initialization
+# ------------------------
+posturl = f"http://{args.server_ip}/api/demo/uploadDetection"
 
 # ------------------------
 # YOLO Model Initialization
@@ -96,6 +106,92 @@ else:
     cap.set(cv.CAP_PROP_FRAME_WIDTH, 1920)
     cap.set(cv.CAP_PROP_FRAME_HEIGHT, 1080)
     cap.set(cv.CAP_PROP_FPS, 30)
+    
+# ------------------------
+# Function to send detection data asynchronously
+# ------------------------
+def send_detection_async(image, camera_id, detections):
+    """Send detection data asynchronously without blocking the main thread."""
+
+    def send_request():
+        try:
+            logging.info(f"Preparing to send {len(detections)} detections to API...")
+
+            image_path = f"detection_snapshot_{int(time.time())}.jpg"
+            cv.imwrite(image_path, image)
+            logging.info(f"📸 Image saved: {image_path}")
+
+            # Get correct MIME type
+            import mimetypes
+            mimetype, _ = mimetypes.guess_type(image_path)
+            if mimetype is None:
+                mimetype = "image/jpeg"  # Default if guessing fails
+
+            logging.info(f"[DEBUG] Detected file mimetype: {mimetype}")
+            
+            with open(image_path, "rb") as img_file:
+                files = {"image": (image_path, img_file, mimetype)}  # Ensure correct MIME type
+
+                data = {
+                    "cameraID": camera_id,
+                    "detections": json.dumps(detections)  #Convert detections to JSON string
+                }
+
+                logging.info(f"[DEBUG] Sending POST request to {posturl}")
+
+                response = requests.post(
+                    posturl,
+                    files=files,  #Must use `files` for image upload
+                    data=data,
+                    timeout=5
+                )
+
+                logging.info(f"[DEBUG] Server Response: {response.text}")
+
+                if response.status_code == 201:
+                    logging.info(f"POST Successful")
+                else:
+                    logging.warning(f"⚠️ POST Failed [{response.status_code}]: {response.text}")
+
+        except requests.exceptions.RequestException as e:
+            logging.error(f"API request failed: {e}")
+        except Exception as e:
+            logging.error(f"Unexpected error: {e}")
+
+    logging.info("Submitting send_detection_async to thread pool.")
+    executor.submit(send_request)
+    
+# ------------------------
+# YOLO Object Detection Processing Function
+# ------------------------
+def run_yolo_on_frame_async(frame, camera_id="550e8400-e29b-41d4-a716-446655440000"):
+    """Offload YOLO processing to a separate thread."""
+    
+    def process_frame():
+        image = Image.fromarray(cv.cvtColor(frame, cv.COLOR_BGR2RGB))
+        results = model(image)  # Runs on a separate thread now
+
+        detections = []
+        for _, row in results.pandas().xyxy[0].iterrows():
+            x1, y1, x2, y2, conf, cls, name = row[["xmin", "ymin", "xmax", "ymax", "confidence", "class", "name"]]
+            detections.append({
+                "x_min": float(x1),
+                "x_max": float(x2),
+                "y_min": float(y1),
+                "y_max": float(y2),
+                "class": int(cls),
+                "species": name,
+                "confidence": round(float(conf), 2)
+            })
+
+        if detections:
+            # timestamp = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+            # logging.info(f"Detected {len(detections)} objects, sending to API...")
+            send_detection_async(frame, camera_id, detections)
+        else:
+            logging.info("🔵 No detections found, skipping API call.")
+
+    detection_executor.submit(process_frame)
 
 # ------------------------
 # Utility Functions for Bounding Box Clustering and ROI Expansion
@@ -226,6 +322,8 @@ def run_yolo_on_region(frame, bbox):
         cv.putText(cropped_region, f"{name} ({conf:.2f})", (int(x1), int(y1)-10),
                    cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
     return yolo_runtime
+
+
 
 # ------------------------
 # Background Initialization
@@ -360,6 +458,9 @@ while True:
     # Cluster the expanded bounding boxes
     merged_boxes = cluster_bounding_boxes(expanded_boxes, args.cluster_distance) if expanded_boxes else []
 
+    #**Call YOLO Detection Here**
+    run_yolo_on_frame_async(original_frame)  #Now processing the frame for detection
+    
     bg_runtime = time.time() - start_bg
     print("Background subtraction runtime: {:.2f} ms".format(bg_runtime * 1000))
 

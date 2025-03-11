@@ -16,10 +16,6 @@ logging.basicConfig(level=logging.INFO)
 executor = ThreadPoolExecutor(max_workers=3)  # 3 threads for parallel processing
 detection_executor = ThreadPoolExecutor(max_workers=2)  # Separate thread pool for YOLO
 
-# ------------------------
-# API Call Initialization
-# ------------------------
-posturl = "http://localhost:3001/api/uploadDetection" # change to host 
 
 # ------------------------
 # Parameterization via argparse
@@ -124,6 +120,7 @@ def send_detection_async(image, camera_id, detections):
 
     logging.info("Submitting send_detection_async to thread pool.")
     executor.submit(send_request)
+
 
 
 # ------------------------
