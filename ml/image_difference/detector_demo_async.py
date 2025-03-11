@@ -8,20 +8,22 @@ import threading
 from PIL import Image
 import argparse
 import pathlib
+import logging
 import pyrealsense2 as rs  # New import for RealSense
 from concurrent.futures import ThreadPoolExecutor  # Thread pool for non-blocking API calls
+logging.basicConfig(level=logging.INFO)
 
+executor = ThreadPoolExecutor(max_workers=3)  # 3 threads for parallel processing
+detection_executor = ThreadPoolExecutor(max_workers=2)  # Separate thread pool for YOLO
 
-# ------------------------
-# API Call Initialization
-# ------------------------
-posturl = "http://localhost:3001/api/demo/uploadDetection" # change to host 
-executor = ThreadPoolExecutor(max_workers=3)  # Thread pool for non-blocking API calls
 
 # ------------------------
 # Parameterization via argparse
 # ------------------------
 parser = argparse.ArgumentParser(description="Image Difference with YOLO Object Detection")
+# New argument for user-defined API IP address
+parser.add_argument("--server_ip", type=str, default="localhost:3001",
+                    help="IP address and port of the API server (e.g., 192.168.1.100:3001)")
 parser.add_argument("--min_diff_size", type=int, default=128, help="Minimum difference size (w*h)")
 parser.add_argument("--threshold_value", type=int, default=50, help="Fixed threshold value")
 parser.add_argument("--use_adaptive_threshold", action="store_true", help="Use adaptive thresholding")
@@ -44,6 +46,11 @@ parser.add_argument("--live_fps", type=float, default=0,
 args = parser.parse_args()
 
 # ------------------------
+# API Call Initialization
+# ------------------------
+posturl = f"http://{args.server_ip}/api/demo/uploadDetection"
+
+# ------------------------
 # YOLO Model Initialization
 # ------------------------
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -63,68 +70,90 @@ pipeline.start(config)
 # ------------------------
 # Function to send detection data asynchronously
 # ------------------------
-def send_detection_async(image, timestamp, camera_id, detections):
+def send_detection_async(image, camera_id, detections):
     """Send detection data asynchronously without blocking the main thread."""
 
     def send_request():
         try:
+            logging.info(f"Preparing to send {len(detections)} detections to API...")
+
             image_path = f"detection_snapshot_{int(time.time())}.jpg"
             cv.imwrite(image_path, image)
+            logging.info(f"📸 Image saved: {image_path}")
 
+            # Get correct MIME type
+            import mimetypes
+            mimetype, _ = mimetypes.guess_type(image_path)
+            if mimetype is None:
+                mimetype = "image/jpeg"  # Default if guessing fails
+
+            logging.info(f"📸 [DEBUG] Detected file mimetype: {mimetype}")
+            
             with open(image_path, "rb") as img_file:
-                files = {"image": img_file}
+                files = {"image": (image_path, img_file, mimetype)}  # Ensure correct MIME type
+
                 data = {
-                    "timestamp": timestamp,
                     "cameraID": camera_id,
-                    "detections": json.dumps(detections),  # Ensure detections are properly formatted
+                    "detections": json.dumps(detections)  #Convert detections to JSON string
                 }
+
+                logging.info(f"🔄 [DEBUG] Sending POST request to {posturl}")
 
                 response = requests.post(
                     posturl,
-                    files=files,
+                    files=files,  #Must use `files` for image upload
                     data=data,
-                    timeout=5,
+                    timeout=5
                 )
 
+                logging.info(f"🔵 [DEBUG] Server Response: {response.text}")
+
                 if response.status_code == 201:
-                    print(f"✅ POST Successful: {response.json()}")
+                    logging.info(f"POST Successful")
                 else:
-                    print(f"⚠️ POST Failed [{response.status_code}]: {response.text}")
+                    logging.warning(f"⚠️ POST Failed [{response.status_code}]: {response.text}")
 
         except requests.exceptions.RequestException as e:
-            print(f"❌ API request failed: {e}")
+            logging.error(f"API request failed: {e}")
+        except Exception as e:
+            logging.error(f"Unexpected error: {e}")
 
-    executor.submit(send_request)  # Run API call in a separate thread
+    logging.info("Submitting send_detection_async to thread pool.")
+    executor.submit(send_request)
+
+
 
 # ------------------------
 # YOLO Object Detection Processing Function
 # ------------------------
-def run_yolo_on_frame(frame):
-    """Runs YOLO detection on a given frame and sends results if detections exist."""
-    image = Image.fromarray(cv.cvtColor(frame, cv.COLOR_BGR2RGB))
-    results = model(image)
+def run_yolo_on_frame_async(frame, camera_id="550e8400-e29b-41d4-a716-446655440000"):
+    """Offload YOLO processing to a separate thread."""
+    
+    def process_frame():
+        image = Image.fromarray(cv.cvtColor(frame, cv.COLOR_BGR2RGB))
+        results = model(image)  # Runs on a separate thread now
 
-    detections = []
-    for _, row in results.pandas().xyxy[0].iterrows():
-        x1, y1, x2, y2, conf, cls, name = row[["xmin", "ymin", "xmax", "ymax", "confidence", "class", "name"]]
-        detections.append(
-            {
+        detections = []
+        for _, row in results.pandas().xyxy[0].iterrows():
+            x1, y1, x2, y2, conf, cls, name = row[["xmin", "ymin", "xmax", "ymax", "confidence", "class", "name"]]
+            detections.append({
                 "x_min": float(x1),
                 "x_max": float(x2),
                 "y_min": float(y1),
                 "y_max": float(y2),
                 "class": int(cls),
                 "species": name,
-                "confidence": round(float(conf), 2),
-            }
-        )
+                "confidence": round(float(conf), 2)
+            })
 
-    if detections:
-        timestamp = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-        print(f"🟢 Detected {len(detections)} objects, sending to API...")
-        send_detection_async(frame, timestamp, "550e8400-e29b-41d4-a716-446655440000", detections)
-    else:
-        print("🔵 No detections found, skipping API call.")
+        if detections:
+            # timestamp = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+            # logging.info(f"Detected {len(detections)} objects, sending to API...")
+            send_detection_async(frame, camera_id, detections)
+        else:
+            logging.info("🔵 No detections found, skipping API call.")
+
+    detection_executor.submit(process_frame)
 
 # ------------------------
 # YOLO Object Detection Processing Function
@@ -348,6 +377,9 @@ while True:
         cv.rectangle(thresh_with_boxes, (square_box[0], square_box[1]),
                      (square_box[0] + square_box[2], square_box[1] + square_box[3]), (0, 255, 0), 2)
 
+    #**Call YOLO Detection Here**
+    run_yolo_on_frame_async(original_frame)  #Now processing the frame for detection
+    
     # Determine if the combined ROI area exceeds the threshold and process accordingly
     if merged_boxes:
         union_bbox_all = union_box(merged_boxes)

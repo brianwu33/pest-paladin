@@ -23,14 +23,14 @@ executor = ThreadPoolExecutor(max_workers=3)  # 3 threads for parallel processin
 detection_executor = ThreadPoolExecutor(max_workers=2)  # Separate thread pool for YOLO
 
 
-# ------------------------
-# API Call Initialization
-# ------------------------
-posturl = "http://localhost:3001/api/detection/uploadDetection" # change to host 
+
 # ------------------------
 # Parameterization via argparse
 # ------------------------
 parser = argparse.ArgumentParser(description="Image Difference with YOLO Object Detection")
+# New argument for user-defined API IP address
+parser.add_argument("--server_ip", type=str, default="localhost:3001",
+                    help="IP address and port of the API server (e.g., 192.168.1.100:3001)")
 parser.add_argument("--min_diff_size", type=int, default=128, help="Minimum difference size (w*h)")
 parser.add_argument("--threshold_value", type=int, default=50, help="Fixed threshold value")
 parser.add_argument("--use_adaptive_threshold", action="store_true", help="Use adaptive thresholding")
@@ -52,13 +52,21 @@ parser.add_argument("--live_fps", type=float, default=0,
                     help="Target FPS for live mode. Set > 0 to enable live mode (can be less than 1).")
 args = parser.parse_args()
 
+
+# ------------------------
+# API Call Initialization
+# ------------------------
+posturl = f"http://{args.server_ip}/api/uploadDetection"
+
+print(f"🔗 Using API Server: {posturl}")
+
 # ------------------------
 # YOLO Model Initialization
 # ------------------------
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-# model = torch.hub.load('ultralytics/yolov5', 'yolov5s', pretrained=True).to(device)
+model = torch.hub.load('ultralytics/yolov5', 'yolov5s', pretrained=True).to(device)
 # model = torch.hub.load('ultralytics/yolov5', 'custom', path='weights/yolov5s_v2.pt').to(device)
-model = torch.hub.load('ultralytics/yolov5', 'custom', path='weights/yolov5x_v2.pt').to(device)
+# model = torch.hub.load('ultralytics/yolov5', 'custom', path='weights/yolov5x_v2.pt').to(device)
 
 
 # ------------------------
@@ -75,7 +83,7 @@ if not cap.isOpened():
     print("Error: Unable to open webcam")
     exit()
 
-def send_detection_async(image, timestamp, camera_id, detections):
+def send_detection_async(image, camera_id, detections):
     """Send detection data asynchronously without blocking the main thread."""
 
     def send_request():
@@ -94,21 +102,10 @@ def send_detection_async(image, timestamp, camera_id, detections):
 
             logging.info(f"📸 [DEBUG] Detected file mimetype: {mimetype}")
             
-            # Convert UTC time to Local Time (America/Toronto)
-            utc_time = datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%SZ")
-            toronto_tz = pytz.timezone("America/Toronto")
-            local_time = utc_time.replace(tzinfo=pytz.utc).astimezone(toronto_tz)
-
-            # Format timestamp in ISO format
-            local_timestamp = local_time.strftime("%Y-%m-%dT%H:%M:%S%z")  # Includes timezone offset
-
-            logging.info(f"🕒 Converted Timestamp (Toronto Time): {local_timestamp}")
-
             with open(image_path, "rb") as img_file:
                 files = {"image": (image_path, img_file, mimetype)}  # Ensure correct MIME type
 
                 data = {
-                    "timestamp": local_timestamp,
                     "cameraID": camera_id,
                     "detections": json.dumps(detections)  #Convert detections to JSON string
                 }
@@ -159,9 +156,9 @@ def run_yolo_on_frame_async(frame, camera_id="550e8400-e29b-41d4-a716-4466554400
             })
 
         if detections:
-            timestamp = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-            logging.info(f"Detected {len(detections)} objects, sending to API...")
-            send_detection_async(frame, timestamp, camera_id, detections)
+            # timestamp = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+            # logging.info(f"Detected {len(detections)} objects, sending to API...")
+            send_detection_async(frame, camera_id, detections)
         else:
             logging.info("🔵 No detections found, skipping API call.")
 
