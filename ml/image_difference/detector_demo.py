@@ -3,11 +3,9 @@ import cv2 as cv
 import time
 import json
 import torch
-import onnxruntime
 from PIL import Image
 import argparse
 import pathlib
-import pyrealsense2 as rs  # Still needed for RealSense mode
 
 # For Windows compatibility if needed
 temp = pathlib.PosixPath
@@ -44,7 +42,7 @@ parser.add_argument("--min_confidence", type=float, default=0.25,
 parser.add_argument("--fps", type=float, default=0,
                     help="Target FPS for live mode. Set > 0 to enable live mode (can be less than 1).")
 # Updated camera type choices to include 'video'
-parser.add_argument("--camera", type=str, choices=["realsense", "webcam", "realsense_ir", "video"], default="video",
+parser.add_argument("--camera", type=str, choices=["realsense", "webcam", "realsense_ir", "video"], default="webcam",
                     help="Camera type to use: realsense, webcam, realsense_ir, or video")
 # New argument for video file path when using video mode
 parser.add_argument("--video_file", type=str, default="video.mp4", help="Path to video file for streaming on loop")
@@ -52,6 +50,9 @@ parser.add_argument("--video_file", type=str, default="video.mp4", help="Path to
 parser.add_argument("--simple_display", action="store_true",
                     help="Display only the object detection output pane instead of the four-pane view")
 args = parser.parse_args()
+
+if args.weights.endswith('.onnx'):
+    import onnxruntime
 
 # Parse output dimensions argument (for each pane, e.g., "640x360")
 if args.simple_display:
@@ -72,11 +73,15 @@ model.conf = args.min_confidence
 # Camera/Video Capture Setup
 # ------------------------
 if args.camera == "realsense":
+    import pyrealsense2 as rs
+
     pipeline = rs.pipeline()
     config = rs.config()
     config.enable_stream(rs.stream.color, 1920, 1080, rs.format.bgr8, 30)
     pipeline.start(config)
 elif args.camera == "realsense_ir":
+    import pyrealsense2 as rs
+
     pipeline = rs.pipeline()
     config = rs.config()
     config.enable_stream(rs.stream.infrared, 1, 1280, 720, rs.format.y8, 30)
@@ -222,6 +227,7 @@ def run_yolo_on_region(frame, bbox):
 
     for _, row in detections.iterrows():
         x1, y1, x2, y2, conf, cls, name = row[['xmin', 'ymin', 'xmax', 'ymax', 'confidence', 'class', 'name']]
+        print(f"Detected {name} with confidence {conf:.2f}")
         cv.rectangle(cropped_region, (int(x1), int(y1)), (int(x2), int(y2)), (255, 0, 0), 2)
         cv.putText(cropped_region, f"{name} ({conf:.2f})", (int(x1), int(y1)-10),
                    cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
