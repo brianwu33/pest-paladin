@@ -53,12 +53,12 @@ export default function DetectionsPage() {
 
   return (
     <div className="container mx-auto py-6">
-      <h1 className="text-2xl font-bold">Detections</h1>
+      {/* <h1 className="text-2xl font-bold">Detections</h1> */}
 
       {error && <p className="text-red-500">{error}</p>}
 
-      <div className="mt-4">
-        <DataTable columns={columns} data={detections} pageSize={pageSize}/>
+      <div className="mt-4 mx-auto max-w-7xl">
+        <DataTable columns={columns} data={detections} pageSize={pageSize} />
         <DataTablePagination
           currentPage={currentPage}
           totalPages={totalPages}

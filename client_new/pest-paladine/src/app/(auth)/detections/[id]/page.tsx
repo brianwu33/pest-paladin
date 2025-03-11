@@ -27,7 +27,9 @@ export default function DetectionDetailPage() {
   const [detection, setDetection] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [isRead, setIsRead] = useState(false); // ✅ Track read status
 
+  // 🔹 Fetch Detection Details
   useEffect(() => {
     if (!detectionId) {
       setLoading(false);
@@ -37,16 +39,17 @@ export default function DetectionDetailPage() {
 
     const fetchDetectionDetail = async () => {
       try {
-        const token = await getToken(); // ✅ Get auth token
+        const token = await getToken();
         const response = await axios.get(
           `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/detections/${detectionId}`,
           {
             headers: {
-              Authorization: `Bearer ${token}`, // ✅ Use token in headers
+              Authorization: `Bearer ${token}`,
             },
           }
         );
         setDetection(response.data);
+        setIsRead(response.data.read); // ✅ Store read status
       } catch (error) {
         console.error("Error fetching detection details:", error);
         setError("Failed to load additional detection data.");
@@ -57,6 +60,28 @@ export default function DetectionDetailPage() {
 
     fetchDetectionDetail();
   }, [detectionId]);
+
+  // 🔹 Mark as Read (On Page Load)
+  useEffect(() => {
+    const markAsRead = async () => {
+      try {
+        const token = await getToken();
+        await axios.put(
+          `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/detections/${detectionId}/read`,
+          { read: true },
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+      } catch (error) {
+        console.error("Error marking detection as read:", error);
+      }
+    };
+
+    if (detectionId && !isRead) {
+      markAsRead();
+    }
+  }, []);
 
   if (loading) return <p>Loading...</p>;
   if (error) return <p className="text-red-500">{error}</p>;

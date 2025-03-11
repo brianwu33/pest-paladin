@@ -6,20 +6,21 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import axios from "axios";
 import { toast } from "react-hot-toast";
+import { Eye, Circle, EyeClosed, EyeOff } from "lucide-react"; // ✅ Icons for read/unread
 
 export type Detection = {
   detection_id: string;
   timestamp: string;
   species: string;
   camera_name: string;
+  read: boolean; // ✅ Added read field
 };
 
 export function useDetectionColumns() {
   const router = useRouter();
-  const { getToken } = useAuth(); // ✅ Get token from Clerk
+  const { getToken } = useAuth();
 
   const handleView = (detection: Detection) => {
-    console.log("Viewing detection:", detection); // Debugging log
     router.push(
       `/detections/${detection.detection_id}?timestamp=${encodeURIComponent(
         detection.timestamp
@@ -36,13 +37,13 @@ export function useDetectionColumns() {
     if (!confirmDelete) return;
 
     try {
-      const token = await getToken(); // ✅ Get auth token
+      const token = await getToken();
 
       await axios.delete(
         `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/detections/${detection.detection_id}`,
         {
           headers: {
-            Authorization: `Bearer ${token}`, // ✅ Use token in headers
+            Authorization: `Bearer ${token}`,
           },
         }
       );
@@ -56,6 +57,16 @@ export function useDetectionColumns() {
   };
 
   const columns: ColumnDef<Detection>[] = [
+    {
+      accessorKey: "status",
+      header: "", // Empty header for the status indicator
+      cell: ({ row }) =>
+        row.original.read ? (
+          <Eye className="text-green-500 w-5 h-5" /> // ✅ Eye icon for read
+        ) : (
+          <EyeOff className="text-red-500 w-5 h-5" /> // ✅ Red dot for unread
+        ),
+    },
     {
       accessorKey: "timestamp",
       header: "Timestamp",

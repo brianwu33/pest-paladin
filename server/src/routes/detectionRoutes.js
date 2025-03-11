@@ -29,7 +29,7 @@ router.get("/", authMiddleware, async (req, res) => {
 
     // Query for paginated detections
     const query = `
-      SELECT detection_id, timestamp, species, camera_name
+      SELECT detection_id, timestamp, species, camera_name, read
       FROM detections
       WHERE user_id = $1
       ORDER BY timestamp DESC
@@ -122,6 +122,29 @@ router.delete("/:detection_id", authMiddleware, async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
+
+router.put("/:id/read", authMiddleware, async (req, res) => {
+  const { id } = req.params;
+  const { read } = req.body; // Boolean value for read status
+  const userID = req.auth.userId;
+
+  try {
+    const result = await pool.query(
+      "UPDATE detections SET read = $1 WHERE detection_id = $2 AND user_id = $3 RETURNING *",
+      [read, id, userID]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: "Detection not found or unauthorized" });
+    }
+
+    res.status(200).json({ message: `Detection marked as ${read ? "read" : "unread"}` });
+  } catch (error) {
+    console.error("❌ Error updating read status:", error);
+    res.status(500).json({ error: "Failed to update read status" });
+  }
+});
+
 
 /**
  * Bulk Insert Endpoint - Adds 70 Detections (10 per day for last 7 days)

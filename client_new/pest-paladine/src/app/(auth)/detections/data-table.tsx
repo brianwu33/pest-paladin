@@ -38,12 +38,19 @@ export function DataTable<TData, TValue>({
   return (
     <div>
       <div className="rounded-md border">
-        <Table>
+        <Table className="table-fixed w-full"> {/* ✅ Added `table-fixed` for improved alignment */}
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id}>
+                {headerGroup.headers.map((header, index) => (
+                  <TableHead
+                    key={header.id}
+                    className={
+                      index === 0
+                        ? "w-[60px]" // ✅ Small width for Status Icon
+                        : "w-1/4"   // ✅ Equal width for other 4 columns
+                    }
+                  >
                     {flexRender(
                       header.column.columnDef.header,
                       header.getContext()
@@ -57,8 +64,15 @@ export function DataTable<TData, TValue>({
             {table.getRowModel().rows.length ? (
               table.getRowModel().rows.map((row) => (
                 <TableRow key={row.id}>
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
+                  {row.getVisibleCells().map((cell, index) => (
+                    <TableCell
+                      key={cell.id}
+                      className={
+                        index === 0
+                          ? "w-[60px]" // ✅ Small width for Status Icon
+                          : "w-1/4"   // ✅ Equal width for other 4 columns
+                      }
+                    >
                       {flexRender(
                         cell.column.columnDef.cell,
                         cell.getContext()
