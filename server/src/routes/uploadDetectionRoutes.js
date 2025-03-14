@@ -1,3 +1,7 @@
+/** 
+ * This file defines the upload detection endpoint used by the Raspberry Pi to send data provided by the ML server to the backend.
+ */
+
 const express = require("express");
 const pool = require("../config/db");
 const { v4: uuidv4 } = require("uuid");
