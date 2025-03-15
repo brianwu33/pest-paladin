@@ -7,7 +7,7 @@ const pool = require("../config/db");
 const { v4: uuidv4 } = require("uuid");
 const { uploadImageToS3, cropImage } = require("../utils/awsUtil"); // Updated Imports
 const uploadImage = require("../middlewares/imageUploadMiddleware"); // ✅ New Middleware
-const { sendNotificationToUser } = require("../websocket");
+const { sendNotificationToUser } = require("../utils/websocket");
 
 const router = express.Router();
 

@@ -6,10 +6,10 @@ const cookieParser = require("cookie-parser");
 const pool = require("./config/db.js");
 const authMiddleware = require("./middlewares/authMiddleware.js");
 const http = require("http");
-const { createWebSocketServer } = require("./websocket"); // ✅ Correct Import
+const { createWebSocketServer } = require("./utils/websocket.js"); // ✅ Correct Import
 
 // Import Routes
-const publicRoutes = require("./routes/publicRoutes.js");
+const uploadDetectionsRoutes = require("./routes/uploadDetectionRoutes.js");
 const detectionRoutes = require("./routes/detectionRoutes.js");
 const analyticRoutes = require("./routes/analyticRoutes.js");
 const cameraRoutes = require("./routes/cameraRoutes.js");
@@ -42,7 +42,7 @@ pool
   .catch((err) => console.error("❌ PostgreSQL connection error:", err));
 
 // Public Routes
-app.use("/api/uploadDetection", publicRoutes); // Exempt from Auth
+app.use("/api/uploadDetection", uploadDetectionsRoutes); // Exempt from Auth
 
 // Protected Routes (Require Authentication)
 app.use("/api/detections", authMiddleware, detectionRoutes);

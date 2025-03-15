@@ -24,21 +24,27 @@ The system is designed to be compatible with:
 
 The landing page introduces the system's key features.
 
-<img src="./client_new/pest-paladine/public/landing.png" alt="Team Photo"/>
+<img src="./client_new/pest-paladine/public/landing.png" alt="Landing"/>
 
 
 ### Dashboard
 
 The dashboard presents key insights including total detections, most active cameras, common pest types, and detection trends over the past 7 days.
 
-<img src="./client_new/pest-paladine/public/dashboard.png" alt="Team Photo"/>
+<img src="./client_new/pest-paladine/public/dashboard.png" alt="Dashboard"/>
+
+### Detections
+
+List view of all detections with pagination.
+
+<img src="./client_new/pest-paladine/public/detections.png" alt="Detections"/>
 
 
 ### Detection Details
 
 Detailed view of individual detections with metadata, original image, and cropped detection for better visualization.
 
-<img src="./client_new/pest-paladine/public/detection-detail.png" alt="Team Photo"/>
+<img src="./client_new/pest-paladine/public/detection-detail.png" alt="Detection Details"/>
 
 
 ---
